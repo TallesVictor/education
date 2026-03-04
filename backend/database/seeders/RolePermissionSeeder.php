@@ -1,0 +1,63 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Database\Seeder;
+
+class RolePermissionSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $admin = Role::query()->where('name', 'Admin')->first();
+        $diretor = Role::query()->where('name', 'Diretor')->first();
+        $coordenador = Role::query()->where('name', 'Coordenador')->first();
+        $professor = Role::query()->where('name', 'Professor')->first();
+        $aluno = Role::query()->where('name', 'Aluno')->first();
+
+        $permissions = Permission::query()->pluck('id', 'key');
+
+        $admin?->permissions()->sync($permissions->values()->all());
+
+        $diretor?->permissions()->sync(array_values(array_filter([
+            $permissions['users.manage'] ?? null,
+            $permissions['subjects.manage'] ?? null,
+            $permissions['classes.manage'] ?? null,
+            $permissions['enrollments.manage'] ?? null,
+        ])));
+
+        $coordenador?->permissions()->sync(array_values(array_filter([
+            $permissions['subjects.manage'] ?? null,
+            $permissions['classes.manage'] ?? null,
+            $permissions['enrollments.manage'] ?? null,
+        ])));
+
+        $professor?->permissions()->sync([]);
+        $aluno?->permissions()->sync([]);
+
+        $availablePermissionIds = $permissions->values()->all();
+        $availablePermissionCount = count($availablePermissionIds);
+
+        if ($availablePermissionCount === 0) {
+            return;
+        }
+
+        $customRoles = Role::query()
+            ->where('is_system', false)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($customRoles as $index => $role) {
+            $rolePermissionIds = [];
+            $permissionsPerRole = min(5, $availablePermissionCount);
+
+            for ($offset = 0; $offset < $permissionsPerRole; $offset++) {
+                $position = ($index + $offset) % $availablePermissionCount;
+                $rolePermissionIds[] = $availablePermissionIds[$position];
+            }
+
+            $role->permissions()->sync($rolePermissionIds);
+        }
+    }
+}

@@ -31,6 +31,7 @@ return new class extends Migration
             $table->unsignedBigInteger('role_id');
             $table->unsignedBigInteger('permission_id');
             $table->primary(['role_id', 'permission_id']);
+            $table->timestamps();
 
             $table->foreign('role_id')->references('id')->on('roles')->cascadeOnDelete();
             $table->foreign('permission_id')->references('id')->on('permissions')->cascadeOnDelete();

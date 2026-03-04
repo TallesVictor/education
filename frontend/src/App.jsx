@@ -1,35 +1,39 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { AppLayout } from './layout/AppLayout'
+import { LoginPage } from './pages/LoginPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { UsersPage } from './pages/UsersPage'
+import { SchoolsPage } from './pages/SchoolsPage'
+import { SubjectsPage } from './pages/SubjectsPage'
+import { ClassesPage } from './pages/ClassesPage'
+import { RolesPage } from './pages/RolesPage'
+import { PermissionsPage } from './pages/PermissionsPage'
+import { EnrollmentsPage } from './pages/EnrollmentsPage'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="schools" element={<SchoolsPage />} />
+        <Route path="subjects" element={<SubjectsPage />} />
+        <Route path="classes" element={<ClassesPage />} />
+        <Route path="roles" element={<RolesPage />} />
+        <Route path="permissions" element={<PermissionsPage />} />
+        <Route path="enrollments" element={<EnrollmentsPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
-
-export default App

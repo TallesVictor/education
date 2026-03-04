@@ -1,0 +1,151 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\BulkEnrollmentRequest;
+use App\Http\Requests\StoreEnrollmentRequest;
+use App\Http\Resources\EnrollmentResource;
+use App\Models\Enrollment;
+use App\Models\SchoolClass;
+use App\Models\Subject;
+use App\Models\User;
+use App\Services\EnrollmentService;
+use App\Support\TenantCache;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class EnrollmentController extends Controller
+{
+    public function __construct(private readonly EnrollmentService $enrollmentService) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        $query = Enrollment::query()->with(['user', 'schoolClass', 'subject']);
+        $this->applyTenantScope($query, $request);
+
+        $enrollments = $query
+            ->orderByDesc('id')
+            ->paginate((int) $request->input('per_page', 15));
+
+        return response()->json([
+            'data' => EnrollmentResource::collection($enrollments->items()),
+            'meta' => [
+                'current_page' => $enrollments->currentPage(),
+                'last_page' => $enrollments->lastPage(),
+                'per_page' => $enrollments->perPage(),
+                'total' => $enrollments->total(),
+            ],
+        ]);
+    }
+
+    public function store(StoreEnrollmentRequest $request): JsonResponse
+    {
+        [$user, $class, $subject] = $this->resolveEnrollmentEntities(
+            $request->string('user_external_id'),
+            $request->string('class_external_id'),
+            $request->string('subject_external_id'),
+            $request,
+        );
+
+        $enrollment = $this->enrollmentService->enroll(
+            userId: $user->id,
+            classId: $class->id,
+            subjectId: $subject->id,
+            startDate: $request->input('start_date'),
+            endDate: $request->input('end_date'),
+        );
+        TenantCache::flushClassesCache();
+
+        return response()->json([
+            'data' => new EnrollmentResource($enrollment->load(['user', 'schoolClass', 'subject'])),
+        ], 201);
+    }
+
+    public function bulk(BulkEnrollmentRequest $request): JsonResponse
+    {
+        $class = SchoolClass::query()->where('external_id', $request->string('class_external_id'))->firstOrFail();
+        $subject = Subject::query()->where('external_id', $request->string('subject_external_id'))->firstOrFail();
+
+        $students = User::query()
+            ->whereIn('external_id', $request->input('student_external_ids'))
+            ->pluck('id')
+            ->all();
+
+        $count = $this->enrollmentService->bulkEnroll(
+            studentIds: $students,
+            classId: $class->id,
+            subjectId: $subject->id,
+            startDate: $request->input('start_date'),
+            endDate: $request->input('end_date'),
+        );
+        TenantCache::flushClassesCache();
+
+        return response()->json([
+            'data' => [
+                'processed' => $count,
+            ],
+        ]);
+    }
+
+    public function destroy(string $externalId): JsonResponse
+    {
+        $enrollment = Enrollment::query()->where('external_id', $externalId)->firstOrFail();
+        $enrollment->delete();
+        TenantCache::flushClassesCache();
+
+        return response()->json([
+            'data' => ['message' => 'Matrícula removida com sucesso.'],
+        ]);
+    }
+
+    public function byStudent(Request $request, string $userExternalId): JsonResponse
+    {
+        $query = Enrollment::query()
+            ->with(['user', 'schoolClass', 'subject'])
+            ->whereHas('user', fn ($userQuery) => $userQuery->where('external_id', $userExternalId));
+
+        $this->applyTenantScope($query, $request);
+
+        $enrollments = $query->get();
+
+        return response()->json([
+            'data' => EnrollmentResource::collection($enrollments),
+        ]);
+    }
+
+    private function resolveEnrollmentEntities(
+        string $userExternalId,
+        string $classExternalId,
+        string $subjectExternalId,
+        Request $request,
+    ): array {
+        $user = User::query()->where('external_id', $userExternalId)->firstOrFail();
+        $class = SchoolClass::query()->where('external_id', $classExternalId)->firstOrFail();
+        $subject = Subject::query()->where('external_id', $subjectExternalId)->firstOrFail();
+
+        if (!$request->user()->isAdmin()) {
+            $tenantId = app('tenant.school_id');
+
+            abort_if($user->school_id !== $tenantId, 403, 'Usuário não pertence ao tenant ativo.');
+            abort_if($class->school_id !== $tenantId, 403, 'Turma não pertence ao tenant ativo.');
+            abort_if($subject->school_id !== $tenantId, 403, 'Disciplina não pertence ao tenant ativo.');
+        }
+
+        return [$user, $class, $subject];
+    }
+
+    private function applyTenantScope(Builder $query, Request $request): void
+    {
+        $tenantId = app()->bound('tenant.school_id') ? app('tenant.school_id') : null;
+
+        if (!$tenantId || $request->user()->isAdmin()) {
+            return;
+        }
+
+        $query
+            ->whereHas('user', fn ($q) => $q->where('school_id', $tenantId))
+            ->whereHas('schoolClass', fn ($q) => $q->where('school_id', $tenantId))
+            ->whereHas('subject', fn ($q) => $q->where('school_id', $tenantId));
+    }
+}
