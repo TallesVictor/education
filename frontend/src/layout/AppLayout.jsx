@@ -9,27 +9,37 @@ const sidebarLogoSrc = `/logo_educ.png?v=${Date.now()}`
 const navGroups = [
   {
     title: 'Geral',
-    items: [{ to: '/dashboard', label: 'Painel', icon: 'dashboard' }],
+    items: [{ to: '/dashboard', label: 'Painel', icon: 'dashboard', module: 'dashboard' }],
   },
   {
     title: 'Cadastros',
     items: [
-      { to: '/users', label: 'Usuários', icon: 'users' },
-      { to: '/schools', label: 'Escolas', icon: 'school' },
-      { to: '/subjects', label: 'Disciplinas', icon: 'subject' },
-      { to: '/materials', label: 'Materiais', icon: 'material' },
-      { to: '/classes', label: 'Turmas', icon: 'class' },
-      { to: '/enrollments', label: 'Matrículas', icon: 'enrollment' },
+      { to: '/users', label: 'Usuários', icon: 'users', module: 'users' },
+      { to: '/schools', label: 'Escolas', icon: 'school', module: 'schools' },
+      { to: '/subjects', label: 'Disciplinas', icon: 'subject', module: 'subjects' },
+      { to: '/materials', label: 'Materiais', icon: 'material', module: 'materials' },
+      { to: '/classes', label: 'Turmas', icon: 'class', module: 'classes' },
+      { to: '/enrollments', label: 'Matrículas', icon: 'enrollment', module: 'enrollments' },
     ],
   },
   {
     title: 'Acesso',
     items: [
-      { to: '/roles', label: 'Perfis', icon: 'role' },
-      { to: '/permissions', label: 'Permissões', icon: 'permission' },
+      { to: '/roles', label: 'Perfis', icon: 'role', module: 'roles' },
+      { to: '/permissions', label: 'Permissões', icon: 'permission', module: 'permissions' },
     ],
   },
 ]
+
+const allProfiles = ['Admin', 'Diretor', 'Coordenador', 'Professor', 'Aluno']
+
+const allowedModulesByProfile = {
+  admin: null,
+  diretor: ['dashboard', 'users', 'subjects', 'classes', 'materials', 'enrollments'],
+  coordenador: ['dashboard', 'subjects', 'classes', 'materials', 'enrollments'],
+  professor: ['dashboard', 'materials'],
+  aluno: ['dashboard', 'materials'],
+}
 
 export function AppLayout() {
   const { user, logout } = useAuth()
@@ -38,10 +48,31 @@ export function AppLayout() {
   const location = useLocation()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [viewAsRole, setViewAsRole] = useState('')
+
+  const normalizedCurrentRole = (user?.role_name || '').toLowerCase()
+  const normalizedViewAsRole = viewAsRole.toLowerCase()
+  const activeRole = normalizedViewAsRole || normalizedCurrentRole
+  const allowedModules = allowedModulesByProfile[activeRole] ?? null
+  const hasRoleSimulation = Boolean(normalizedViewAsRole)
 
   useEffect(() => {
     setIsMobileSidebarOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    const canAccessCurrentRoute = navGroups
+      .flatMap((group) => group.items)
+      .some(
+        (item) =>
+          location.pathname.startsWith(item.to) &&
+          (!allowedModules || allowedModules.includes(item.module)),
+      )
+
+    if (!canAccessCurrentRoute && location.pathname !== '/dashboard') {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [allowedModules, location.pathname, navigate])
 
   async function handleLogout() {
     await logout()
@@ -88,22 +119,50 @@ export function AppLayout() {
           <p className="sidebar-meta">Tecnologia acadêmica para escola, professores e alunos.</p>
         </div>
 
+        <div className="view-as-switcher">
+          <label htmlFor="view-as-role" className="view-as-label">
+            Ver como
+          </label>
+          <select
+            id="view-as-role"
+            className="view-as-select"
+            value={viewAsRole}
+            onChange={(event) => setViewAsRole(event.target.value)}
+          >
+            <option value="">Perfil atual ({user?.role_name || 'N/A'})</option>
+            {allProfiles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          <p className="view-as-hint">Pré-visualização de menu por perfil.</p>
+        </div>
+
         <nav className="sidebar-nav">
-          {navGroups.map((group) => (
-            <div key={group.title} className="nav-group">
-              <p className="nav-group-title">{group.title}</p>
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
-                >
-                  <Icon name={item.icon} className="nav-link-icon" />
-                  <span className="nav-link-text">{item.label}</span>
-                </NavLink>
-              ))}
-            </div>
-          ))}
+          {navGroups
+            .map((group) => ({
+              ...group,
+              items: group.items.filter(
+                (item) => !allowedModules || allowedModules.includes(item.module),
+              ),
+            }))
+            .filter((group) => group.items.length > 0)
+            .map((group) => (
+              <div key={group.title} className="nav-group">
+                <p className="nav-group-title">{group.title}</p>
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
+                  >
+                    <Icon name={item.icon} className="nav-link-icon" />
+                    <span className="nav-link-text">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            ))}
         </nav>
 
         <button type="button" className="ghost-button" onClick={handleLogout}>
@@ -147,6 +206,12 @@ export function AppLayout() {
             </button>
 
             <div className="topbar-badges">
+              {hasRoleSimulation ? (
+                <span className="badge-inline badge-inline-primary">
+                  <Icon name="preview" size={14} />
+                  Ver como: {viewAsRole}
+                </span>
+              ) : null}
               <span className="badge-inline badge-inline-primary">
                 <Icon name="shield" size={14} />
                 Ambiente seguro

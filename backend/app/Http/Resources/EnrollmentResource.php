@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,10 +18,8 @@ class EnrollmentResource extends JsonResource
             'class_name' => $this->schoolClass?->name,
             'subject_external_id' => $this->subject?->external_id,
             'subject_name' => $this->subject?->name,
-            'start_date' => $this->start_date,
-            'end_date' => $this->end_date,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'start_date' => Carbon::parse($this->start_date)->format('d/M/Y H:i'), //$this->start_date,
+            'end_date' => $this->end ? Carbon::parse($this->end)->format('d/M/Y H:i'): null,
         ];
     }
 }
