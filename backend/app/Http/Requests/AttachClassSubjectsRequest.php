@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class LoginRequest extends FormRequest
+class AttachClassSubjectsRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,9 +14,8 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email:rfc,dns'],
-            'password' => ['required', 'string'],
-            'device_name' => ['nullable', 'string', 'max:100'],
+            'subject_external_ids' => ['required', 'array', 'min:1'],
+            'subject_external_ids.*' => ['string', 'size:21'],
         ];
     }
 }

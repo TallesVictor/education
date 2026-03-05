@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckPermission
 {
-    public function handle(Request $request, Closure $next, string $permission): Response
+    public function handle(Request $request, Closure $next, string $module): Response
     {
         $user = $request->user();
 
@@ -24,8 +24,8 @@ class CheckPermission
             return $next($request);
         }
 
-        $tenantId = app()->bound('tenant.school_id')
-            ? app('tenant.school_id')
+        $tenantId = app()->bound('tenant')
+            ? app('tenant')
             : $user->school_id;
 
         if (!$tenantId) {
@@ -54,7 +54,11 @@ class CheckPermission
                 ->all();
         });
 
-        if (!in_array($permission, $permissions, true)) {
+        $requiredPermission = str_contains($module, '.')
+            ? $module
+            : sprintf('%s.manage', $module);
+
+        if (!in_array($requiredPermission, $permissions, true)) {
             abort(403, 'Você não tem permissão para acessar este recurso.');
         }
 

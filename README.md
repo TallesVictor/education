@@ -26,7 +26,7 @@ docker compose exec app php artisan storage:link
 
 - URL: `http://localhost`
 - Login inicial:
-  - E-mail: `admin@escola.local`
+  - E-mail: `admin@example.com`
   - Senha: `admin123`
 
 ## Endpoints principais

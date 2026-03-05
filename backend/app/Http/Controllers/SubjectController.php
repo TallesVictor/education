@@ -120,15 +120,15 @@ class SubjectController extends Controller
     private function resolveSchoolId(Request $request): ?int
     {
         if (!$request->user()->isAdmin()) {
-            return app('tenant.school_id');
+            return app()->bound('tenant') ? app('tenant') : null;
         }
 
-        if (!app()->bound('tenant.school_id') && !$request->filled('school_external_id')) {
+        if (!app()->bound('tenant') && !$request->filled('school_external_id')) {
             return null;
         }
 
-        if (app()->bound('tenant.school_id')) {
-            return app('tenant.school_id');
+        if (app()->bound('tenant')) {
+            return app('tenant');
         }
 
         return School::query()->where('external_id', $request->string('school_external_id'))->value('id');

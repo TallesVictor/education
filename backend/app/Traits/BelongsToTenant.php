@@ -9,11 +9,11 @@ trait BelongsToTenant
     public static function bootBelongsToTenant(): void
     {
         static::addGlobalScope('tenant', function (Builder $builder): void {
-            if (!app()->bound('tenant.school_id')) {
+            if (!app()->bound('tenant')) {
                 return;
             }
 
-            $tenantId = app('tenant.school_id');
+            $tenantId = app('tenant');
             if (empty($tenantId)) {
                 return;
             }
@@ -26,11 +26,11 @@ trait BelongsToTenant
                 return;
             }
 
-            if (!app()->bound('tenant.school_id')) {
+            if (!app()->bound('tenant')) {
                 return;
             }
 
-            $model->school_id = app('tenant.school_id');
+            $model->school_id = app('tenant');
         });
     }
 }

@@ -11,10 +11,14 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+Route::pattern('external_id', '[A-Za-z0-9_-]{21}');
+Route::pattern('subject_external_id', '[A-Za-z0-9_-]{21}');
+Route::pattern('user_external_id', '[A-Za-z0-9_-]{21}');
+
 Route::prefix('auth')->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth-password-reset');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth-password-reset');
 });
 
 Route::get('/cep/{cep}', [CepController::class, 'show']);
@@ -25,7 +29,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
     });
 
-    Route::middleware('permission:users.manage')->group(function () {
+    Route::middleware('permission:users')->group(function () {
         Route::get('/users/template', [UserController::class, 'template']);
         Route::post('/users/import', [UserController::class, 'import']);
         Route::get('/users', [UserController::class, 'index']);
@@ -35,7 +39,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('/users/{external_id}', [UserController::class, 'destroy']);
     });
 
-    Route::middleware('permission:schools.manage')->group(function () {
+    Route::middleware('permission:schools')->group(function () {
         Route::get('/schools', [SchoolController::class, 'index']);
         Route::post('/schools', [SchoolController::class, 'store']);
         Route::get('/schools/{external_id}', [SchoolController::class, 'show']);
@@ -43,7 +47,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('/schools/{external_id}', [SchoolController::class, 'destroy']);
     });
 
-    Route::middleware('permission:subjects.manage')->group(function () {
+    Route::middleware('permission:subjects')->group(function () {
         Route::get('/subjects', [SubjectController::class, 'index']);
         Route::post('/subjects', [SubjectController::class, 'store']);
         Route::get('/subjects/{external_id}', [SubjectController::class, 'show']);
@@ -51,7 +55,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('/subjects/{external_id}', [SubjectController::class, 'destroy']);
     });
 
-    Route::middleware('permission:classes.manage')->group(function () {
+    Route::middleware('permission:classes')->group(function () {
         Route::get('/classes', [SchoolClassController::class, 'index']);
         Route::post('/classes', [SchoolClassController::class, 'store']);
         Route::get('/classes/{external_id}', [SchoolClassController::class, 'show']);
@@ -61,7 +65,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('/classes/{external_id}/subjects/{subject_external_id}', [SchoolClassController::class, 'detachSubject']);
     });
 
-    Route::middleware('permission:roles.manage')->group(function () {
+    Route::middleware('permission:roles')->group(function () {
         Route::get('/roles', [RoleController::class, 'index']);
         Route::post('/roles', [RoleController::class, 'store']);
         Route::get('/roles/{external_id}', [RoleController::class, 'show']);
@@ -70,7 +74,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::put('/roles/{external_id}/permissions', [RoleController::class, 'updatePermissions']);
     });
 
-    Route::middleware('permission:permissions.manage')->group(function () {
+    Route::middleware('permission:permissions')->group(function () {
         Route::get('/permissions', [PermissionController::class, 'index']);
         Route::post('/permissions', [PermissionController::class, 'store']);
         Route::get('/permissions/{external_id}', [PermissionController::class, 'show']);
@@ -78,7 +82,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('/permissions/{external_id}', [PermissionController::class, 'destroy']);
     });
 
-    Route::middleware('permission:enrollments.manage')->group(function () {
+    Route::middleware('permission:enrollments')->group(function () {
         Route::get('/enrollments', [EnrollmentController::class, 'index']);
         Route::post('/enrollments', [EnrollmentController::class, 'store']);
         Route::post('/enrollments/bulk', [EnrollmentController::class, 'bulk']);

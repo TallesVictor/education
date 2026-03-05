@@ -16,7 +16,13 @@ class UpdateSubjectRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'max:2048'],
+            'image' => [
+                'nullable',
+                'image',
+                'max:2048',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif',
+            ],
         ];
     }
 }

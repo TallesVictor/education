@@ -1,23 +1,39 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../hooks/useToast'
 
-const navItems = [
-  { to: '/dashboard', label: 'Painel' },
-  { to: '/users', label: 'Usuários' },
-  { to: '/schools', label: 'Escolas' },
-  { to: '/subjects', label: 'Disciplinas' },
-  { to: '/classes', label: 'Turmas' },
-  { to: '/roles', label: 'Perfis' },
-  { to: '/permissions', label: 'Permissões' },
-  { to: '/enrollments', label: 'Matrículas' },
+const navGroups = [
+  {
+    title: 'Geral',
+    items: [{ to: '/dashboard', label: 'Painel' }],
+  },
+  {
+    title: 'Cadastros',
+    items: [
+      { to: '/users', label: 'Usuários' },
+      { to: '/schools', label: 'Escolas' },
+      { to: '/subjects', label: 'Disciplinas' },
+      { to: '/classes', label: 'Turmas' },
+      { to: '/enrollments', label: 'Matrículas' },
+    ],
+  },
+  {
+    title: 'Acesso',
+    items: [
+      { to: '/roles', label: 'Perfis' },
+      { to: '/permissions', label: 'Permissões' },
+    ],
+  },
 ]
 
 export function AppLayout() {
   const { user, logout } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
 
   async function handleLogout() {
     await logout()
+    toast.info('Sessão encerrada.')
     navigate('/login')
   }
 
@@ -30,16 +46,21 @@ export function AppLayout() {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? 'nav-link-active' : ''}`
-              }
-            >
-              {item.label}
-            </NavLink>
+          {navGroups.map((group) => (
+            <div key={group.title} className="nav-group">
+              <p className="nav-group-title">{group.title}</p>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? 'nav-link-active' : ''}`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

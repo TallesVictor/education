@@ -40,7 +40,7 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
 
-            $table->unique(['class_id', 'subject_id', 'deleted_at']);
+            $table->unique(['class_id', 'subject_id']);
             $table->foreign('class_id')->references('id')->on('classes')->cascadeOnDelete();
             $table->foreign('subject_id')->references('id')->on('subjects')->cascadeOnDelete();
         });
@@ -48,6 +48,7 @@ return new class extends Migration
         Schema::create('enrollments', function (Blueprint $table) {
             $table->id();
             $table->string('external_id', 21)->unique();
+            $table->unsignedBigInteger('school_id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('class_id');
             $table->unsignedBigInteger('subject_id');
@@ -56,7 +57,8 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
 
-            $table->unique(['user_id', 'class_id', 'subject_id', 'deleted_at']);
+            $table->unique(['user_id', 'class_id', 'subject_id']);
+            $table->foreign('school_id')->references('id')->on('schools')->cascadeOnDelete();
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreign('class_id')->references('id')->on('classes')->cascadeOnDelete();
             $table->foreign('subject_id')->references('id')->on('subjects')->cascadeOnDelete();

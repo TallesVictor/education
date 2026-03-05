@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '../api/client'
+import { PaginationControls } from '../components/PaginationControls'
+import { useToast } from '../hooks/useToast'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório.'),
@@ -19,7 +21,9 @@ const initialValues = {
 
 export function PermissionsPage() {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedRoleExternalId, setSelectedRoleExternalId] = useState('')
   const [matrixDraft, setMatrixDraft] = useState({})
@@ -65,7 +69,7 @@ export function PermissionsPage() {
       return matrixDraft[effectiveRoleExternalId]
     }
 
-    return (selectedRole?.permissions ?? []).map((permission) => permission.external_id)
+    return (selectedRole?.permissions ?? []).map((permission) => permission.id)
   }, [effectiveRoleExternalId, matrixDraft, selectedRole])
 
   const groupedPermissions = useMemo(() => {
@@ -81,6 +85,28 @@ export function PermissionsPage() {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
   }, [permissionsQuery.data])
 
+  const paginatedPermissions = useMemo(() => {
+    const rows = permissionsQuery.data ?? []
+    const perPage = 15
+    const start = (page - 1) * perPage
+    const end = start + perPage
+
+    return rows.slice(start, end)
+  }, [page, permissionsQuery.data])
+
+  const permissionsMeta = useMemo(() => {
+    const total = (permissionsQuery.data ?? []).length
+    const perPage = 15
+    const lastPage = Math.max(1, Math.ceil(total / perPage))
+
+    return {
+      current_page: Math.min(page, lastPage),
+      last_page: lastPage,
+      per_page: perPage,
+      total,
+    }
+  }, [page, permissionsQuery.data])
+
   const savePermissionMutation = useMutation({
     mutationFn: async (values) => {
       if (editing) {
@@ -93,12 +119,14 @@ export function PermissionsPage() {
       setEditing(null)
       form.reset(initialValues)
       setStatusMessage('Permissão salva com sucesso.')
+      toast.success('Permissão salva com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['permissions'] })
       await queryClient.invalidateQueries({ queryKey: ['roles-permissions-page'] })
     },
     onError: (error) => {
       const apiMessage = error?.response?.data?.message
       setStatusMessage(apiMessage || 'Não foi possível salvar a permissão.')
+      toast.error(apiMessage || 'Não foi possível salvar a permissão.')
     },
   })
 
@@ -108,11 +136,13 @@ export function PermissionsPage() {
     },
     onSuccess: async () => {
       setStatusMessage('Permissão removida com sucesso.')
+      toast.success('Permissão removida com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['permissions'] })
       await queryClient.invalidateQueries({ queryKey: ['roles-permissions-page'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível remover a permissão.')
+      toast.error('Não foi possível remover a permissão.')
     },
   })
 
@@ -123,11 +153,12 @@ export function PermissionsPage() {
       }
 
       await api.put(`/roles/${effectiveRoleExternalId}/permissions`, {
-        permission_external_ids: selectedPermissions,
+        permission_ids: selectedPermissions,
       })
     },
     onSuccess: async () => {
       setStatusMessage('Matriz de permissões atualizada com sucesso.')
+      toast.success('Matriz de permissões atualizada com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['roles-permissions-page'] })
     },
     onError: (error) => {
@@ -136,6 +167,7 @@ export function PermissionsPage() {
       setStatusMessage(
         validationMessage || apiMessage || 'Não foi possível atualizar a matriz.',
       )
+      toast.error(validationMessage || apiMessage || 'Não foi possível atualizar a matriz.')
     },
   })
 
@@ -151,27 +183,27 @@ export function PermissionsPage() {
     form.reset(initialValues)
   }
 
-  function togglePermission(externalId) {
+  function togglePermission(permissionId) {
     setMatrixDraft((current) => {
       const currentSelection =
         current[effectiveRoleExternalId] ?? selectedPermissions
 
-      if (currentSelection.includes(externalId)) {
+      if (currentSelection.includes(permissionId)) {
         return {
           ...current,
-          [effectiveRoleExternalId]: currentSelection.filter((id) => id !== externalId),
+          [effectiveRoleExternalId]: currentSelection.filter((id) => id !== permissionId),
         }
       }
 
       return {
         ...current,
-        [effectiveRoleExternalId]: [...currentSelection, externalId],
+        [effectiveRoleExternalId]: [...currentSelection, permissionId],
       }
     })
   }
 
   function selectAllModule(modulePermissions) {
-    const moduleIds = modulePermissions.map((permission) => permission.external_id)
+    const moduleIds = modulePermissions.map((permission) => permission.id)
 
     setMatrixDraft((current) => {
       const currentSelection =
@@ -212,7 +244,7 @@ export function PermissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {(permissionsQuery.data ?? []).map((permission) => (
+                {paginatedPermissions.map((permission) => (
                   <tr key={permission.external_id}>
                     <td>{permission.name}</td>
                     <td>{permission.key}</td>
@@ -236,6 +268,11 @@ export function PermissionsPage() {
               </tbody>
             </table>
           </div>
+
+          <PaginationControls
+            meta={permissionsMeta}
+            onPageChange={(nextPage) => setPage(Math.max(1, nextPage))}
+          />
         </section>
 
         <section className="module-card">
@@ -334,8 +371,8 @@ export function PermissionsPage() {
                   <label key={permission.external_id} className="checkbox-line">
                     <input
                       type="checkbox"
-                      checked={selectedPermissions.includes(permission.external_id)}
-                      onChange={() => togglePermission(permission.external_id)}
+                      checked={selectedPermissions.includes(permission.id)}
+                      onChange={() => togglePermission(permission.id)}
                     />
                     <span>{permission.name}</span>
                     <code>{permission.key}</code>

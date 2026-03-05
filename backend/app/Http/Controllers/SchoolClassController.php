@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AttachClassSubjectsRequest;
 use App\Http\Requests\StoreClassRequest;
 use App\Http\Requests\UpdateClassRequest;
 use App\Http\Resources\SchoolClassResource;
@@ -79,7 +80,7 @@ class SchoolClassController extends Controller
                 'year' => $request->integer('year'),
             ]);
 
-            if ($request->filled('subject_external_ids')) {
+            if ($request->has('subject_external_ids')) {
                 $subjectIds = Subject::query()
                     ->whereIn('external_id', $request->input('subject_external_ids'))
                     ->pluck('id')
@@ -123,7 +124,7 @@ class SchoolClassController extends Controller
         DB::transaction(function () use ($request, $class): void {
             $class->update($request->only(['name', 'year']));
 
-            if ($request->filled('subject_external_ids')) {
+            if ($request->has('subject_external_ids')) {
                 $subjectIds = Subject::query()
                     ->whereIn('external_id', $request->input('subject_external_ids'))
                     ->pluck('id')
@@ -152,17 +153,12 @@ class SchoolClassController extends Controller
         ]);
     }
 
-    public function attachSubjects(Request $request, string $externalId): JsonResponse
+    public function attachSubjects(AttachClassSubjectsRequest $request, string $externalId): JsonResponse
     {
-        $data = $request->validate([
-            'subject_external_ids' => ['required', 'array', 'min:1'],
-            'subject_external_ids.*' => ['string', 'size:21'],
-        ]);
-
         $class = SchoolClass::query()->where('external_id', $externalId)->firstOrFail();
 
         $subjectIds = Subject::query()
-            ->whereIn('external_id', $data['subject_external_ids'])
+            ->whereIn('external_id', $request->input('subject_external_ids'))
             ->pluck('id')
             ->all();
 
@@ -194,11 +190,11 @@ class SchoolClassController extends Controller
     private function resolveSchoolId(Request $request): ?int
     {
         if (!$request->user()->isAdmin()) {
-            return app('tenant.school_id');
+            return app()->bound('tenant') ? app('tenant') : null;
         }
 
-        if (app()->bound('tenant.school_id')) {
-            return app('tenant.school_id');
+        if (app()->bound('tenant')) {
+            return app('tenant');
         }
 
         if (!$request->filled('school_external_id')) {

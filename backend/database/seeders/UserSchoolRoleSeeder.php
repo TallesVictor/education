@@ -22,7 +22,7 @@ class UserSchoolRoleSeeder extends Seeder
         }
 
         $users = User::query()
-            ->where('email', 'like', 'usuario.%@escola.local')
+            ->where('email', 'like', 'usuario.%@example.com')
             ->whereNotNull('school_id')
             ->orderBy('id')
             ->get(['id', 'school_id']);

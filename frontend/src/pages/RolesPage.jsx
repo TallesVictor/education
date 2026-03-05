@@ -13,7 +13,13 @@ export function RolesPage() {
       endpoint="roles"
       columns={[
         { key: 'name', label: 'Nome' },
-        { key: 'is_system', label: 'Sistema' },
+        {
+          key: 'is_system',
+          label: 'Sistema',
+          render: (row) => (
+            <span className="pill-badge">{row.is_system ? 'Sistema' : 'Custom'}</span>
+          ),
+        },
       ]}
       schema={schema}
       initialValues={{

@@ -35,29 +35,5 @@ class RolePermissionSeeder extends Seeder
 
         $professor?->permissions()->sync([]);
         $aluno?->permissions()->sync([]);
-
-        $availablePermissionIds = $permissions->values()->all();
-        $availablePermissionCount = count($availablePermissionIds);
-
-        if ($availablePermissionCount === 0) {
-            return;
-        }
-
-        $customRoles = Role::query()
-            ->where('is_system', false)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($customRoles as $index => $role) {
-            $rolePermissionIds = [];
-            $permissionsPerRole = min(5, $availablePermissionCount);
-
-            for ($offset = 0; $offset < $permissionsPerRole; $offset++) {
-                $position = ($index + $offset) % $availablePermissionCount;
-                $rolePermissionIds[] = $availablePermissionIds[$position];
-            }
-
-            $role->permissions()->sync($rolePermissionIds);
-        }
     }
 }

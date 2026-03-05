@@ -1,8 +1,9 @@
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../hooks/useToast'
 
 const schema = z.object({
   email: z.email('Informe um e-mail válido.'),
@@ -11,21 +12,26 @@ const schema = z.object({
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
+  const toast = useToast()
 
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      email: 'admin@escola.local',
-      password: 'admin123',
+      email: '',
+      password: '',
     },
   })
 
   async function onSubmit(values) {
     try {
       await login(values.email, values.password)
-      navigate('/dashboard')
+      toast.success('Login realizado com sucesso.')
+      const redirectTo = location.state?.from?.pathname || '/dashboard'
+      navigate(redirectTo, { replace: true })
     } catch {
+      toast.error('Credenciais inválidas.')
       form.setError('root', { message: 'Credenciais inválidas.' })
     }
   }

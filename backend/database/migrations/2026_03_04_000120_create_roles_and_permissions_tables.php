@@ -45,7 +45,7 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
 
-            $table->unique(['user_id', 'school_id', 'deleted_at']);
+            $table->unique(['user_id', 'school_id']);
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreign('school_id')->references('id')->on('schools')->nullOnDelete();
             $table->foreign('role_id')->references('id')->on('roles')->cascadeOnDelete();

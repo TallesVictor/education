@@ -21,8 +21,8 @@ class TenantCache
 
     public static function tenantSegment(?Request $request = null): string
     {
-        if (app()->bound('tenant.school_id')) {
-            return (string) app('tenant.school_id');
+        if (app()->bound('tenant')) {
+            return (string) app('tenant');
         }
 
         $user = $request?->user();

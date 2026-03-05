@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import { api } from '../api/client'
+import { PaginationControls } from '../components/PaginationControls'
+import { useToast } from '../hooks/useToast'
+
+const schema = z.object({
+  school_external_id: z.string().optional(),
+  name: z.string().min(1, 'Nome é obrigatório.'),
+  description: z.string().optional(),
+})
 
 const initialValues = {
   school_external_id: '',
@@ -11,20 +21,26 @@ const initialValues = {
 
 export function SubjectsPage() {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
 
   const form = useForm({
+    resolver: zodResolver(schema),
     defaultValues: initialValues,
   })
 
   const subjectsQuery = useQuery({
-    queryKey: ['subjects'],
+    queryKey: ['subjects', page],
     queryFn: async () => {
-      const { data } = await api.get('/subjects', { params: { per_page: 200 } })
-      return data.data
+      const { data } = await api.get('/subjects', { params: { page, per_page: 15 } })
+      return {
+        data: data.data,
+        meta: data.meta,
+      }
     },
   })
 
@@ -80,10 +96,12 @@ export function SubjectsPage() {
       setImagePreview('')
       form.reset(initialValues)
       setStatusMessage('Disciplina salva com sucesso.')
+      toast.success('Disciplina salva com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['subjects'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível salvar a disciplina.')
+      toast.error('Não foi possível salvar a disciplina.')
     },
   })
 
@@ -93,10 +111,12 @@ export function SubjectsPage() {
     },
     onSuccess: async () => {
       setStatusMessage('Disciplina removida com sucesso.')
+      toast.success('Disciplina removida com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['subjects'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível remover a disciplina.')
+      toast.error('Não foi possível remover a disciplina.')
     },
   })
 
@@ -134,7 +154,7 @@ export function SubjectsPage() {
       <section className="module-card">
         <div className="section-title-row">
           <h3>Disciplinas</h3>
-          <p>{subjectsQuery.data?.length ?? 0} registros</p>
+          <p>{subjectsQuery.data?.meta?.total ?? 0} registros</p>
         </div>
 
         {subjectsQuery.isLoading && <p>Carregando...</p>}
@@ -150,7 +170,7 @@ export function SubjectsPage() {
               </tr>
             </thead>
             <tbody>
-              {(subjectsQuery.data ?? []).map((subject) => (
+              {(subjectsQuery.data?.data ?? []).map((subject) => (
                 <tr key={subject.external_id}>
                   <td>
                     {subject.image_url ? (
@@ -178,6 +198,11 @@ export function SubjectsPage() {
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          meta={subjectsQuery.data?.meta}
+          onPageChange={(nextPage) => setPage(Math.max(1, nextPage))}
+        />
       </section>
 
       <section className="module-card">
@@ -196,10 +221,7 @@ export function SubjectsPage() {
         >
           <label>
             <span>Nome *</span>
-            <input
-              type="text"
-              {...form.register('name', { required: 'Nome é obrigatório.' })}
-            />
+            <input type="text" {...form.register('name')} />
             {form.formState.errors.name && (
               <small className="error-text">{form.formState.errors.name.message}</small>
             )}

@@ -25,13 +25,16 @@ class SetTenantContext
                 $tenantId = School::query()
                     ->where('external_id', $schoolExternalId)
                     ->value('id');
+
+                abort_unless($tenantId, 404, 'Escola do contexto não encontrada.');
             }
         } else {
             $tenantId = $user->school_id;
+            abort_unless($tenantId, 403, 'Usuário sem escola vinculada.');
         }
 
         if ($tenantId) {
-            app()->instance('tenant.school_id', $tenantId);
+            app()->instance('tenant', $tenantId);
             $request->attributes->set('tenant_school_id', $tenantId);
         }
 

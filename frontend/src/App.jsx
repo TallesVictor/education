@@ -10,6 +10,7 @@ import { ClassesPage } from './pages/ClassesPage'
 import { RolesPage } from './pages/RolesPage'
 import { PermissionsPage } from './pages/PermissionsPage'
 import { EnrollmentsPage } from './pages/EnrollmentsPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 
 export default function App() {
   return (
@@ -33,7 +34,7 @@ export default function App() {
         <Route path="permissions" element={<PermissionsPage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

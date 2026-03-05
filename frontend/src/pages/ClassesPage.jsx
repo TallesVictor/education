@@ -8,6 +8,7 @@ const schema = z.object({
   school_external_id: z.string().optional(),
   name: z.string().min(1),
   year: z.coerce.number().int().min(2000).max(2100),
+  subject_external_ids: z.array(z.string()).optional(),
 })
 
 export function ClassesPage() {
@@ -28,6 +29,23 @@ export function ClassesPage() {
     [schoolsQuery.data],
   )
 
+  const subjectsQuery = useQuery({
+    queryKey: ['subjects-classes'],
+    queryFn: async () => {
+      const { data } = await api.get('/subjects', { params: { per_page: 200 } })
+      return data.data
+    },
+  })
+
+  const subjectOptions = useMemo(
+    () =>
+      (subjectsQuery.data ?? []).map((subject) => ({
+        value: subject.external_id,
+        label: subject.name,
+      })),
+    [subjectsQuery.data],
+  )
+
   return (
     <CrudModule
       title="Turma"
@@ -37,12 +55,14 @@ export function ClassesPage() {
         { key: 'school_name', label: 'Escola' },
         { key: 'year', label: 'Ano' },
         { key: 'enrollments_count', label: 'Alunos' },
+        { key: 'subjects_count', label: 'Disciplinas' },
       ]}
       schema={schema}
       initialValues={{
         school_external_id: '',
         name: '',
         year: new Date().getFullYear(),
+        subject_external_ids: [],
       }}
       fields={[
         {
@@ -53,7 +73,21 @@ export function ClassesPage() {
         },
         { name: 'name', label: 'Nome *' },
         { name: 'year', label: 'Ano *', type: 'number' },
+        {
+          name: 'subject_external_ids',
+          label: 'Disciplinas',
+          type: 'multiselect',
+          options: subjectOptions,
+          getValue: (row) => (row.subjects ?? []).map((subject) => subject.external_id),
+        },
       ]}
+      transformSubmit={(values) => ({
+        ...values,
+        year: Number(values.year),
+        subject_external_ids: Array.isArray(values.subject_external_ids)
+          ? values.subject_external_ids
+          : [],
+      })}
     />
   )
 }

@@ -6,7 +6,6 @@ use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRolePermissionsRequest;
 use App\Http\Requests\UpdateRoleRequest;
 use App\Http\Resources\RoleResource;
-use App\Models\Permission;
 use App\Models\Role;
 use App\Support\TenantCache;
 use Illuminate\Http\JsonResponse;
@@ -24,12 +23,7 @@ class RoleController extends Controller
         $tenantSegment = TenantCache::tenantSegment($request);
         $cacheKey = TenantCache::rolesKey($tenantSegment);
 
-        $roles = Cache::remember($cacheKey, TenantCache::ROLES_TTL, function () {
-            return Role::query()
-                ->with('permissions')
-                ->orderBy('name')
-                ->get();
-        });
+        $roles = $this->loadRolesCollection($cacheKey);
 
         $paginator = new LengthAwarePaginator(
             items: $roles->forPage($page, $perPage)->values(),
@@ -52,6 +46,14 @@ class RoleController extends Controller
 
     public function store(StoreRoleRequest $request): JsonResponse
     {
+        if ($request->filled('is_system') && !$request->user()->isAdmin()) {
+            abort(403, 'Apenas administradores podem alterar o indicador de perfil de sistema.');
+        }
+
+        if ((string) $request->string('name') === 'Admin' && !$request->user()->isAdmin()) {
+            abort(403, 'Apenas administradores podem criar perfil Admin.');
+        }
+
         $role = Role::query()->create($request->validated());
 
         TenantCache::flushRolesCache();
@@ -78,6 +80,14 @@ class RoleController extends Controller
             throw ValidationException::withMessages([
                 'role' => ['Perfis de sistema não podem ser editados.'],
             ]);
+        }
+
+        if ($request->filled('is_system') && !$request->user()->isAdmin()) {
+            abort(403, 'Apenas administradores podem alterar o indicador de perfil de sistema.');
+        }
+
+        if ((string) $request->string('name') === 'Admin' && !$request->user()->isAdmin()) {
+            abort(403, 'Apenas administradores podem renomear perfil para Admin.');
         }
 
         $role->update($request->validated());
@@ -119,12 +129,7 @@ class RoleController extends Controller
             ]);
         }
 
-        $permissionIds = Permission::query()
-            ->whereIn('external_id', $request->input('permission_external_ids'))
-            ->pluck('id')
-            ->all();
-
-        $role->permissions()->sync($permissionIds);
+        $role->permissions()->sync($request->input('permission_ids'));
 
         TenantCache::flushRolesCache();
         TenantCache::flushPermissionCacheForRole($role->id);
@@ -132,5 +137,38 @@ class RoleController extends Controller
         return response()->json([
             'data' => new RoleResource($role->fresh('permissions')),
         ]);
+    }
+
+    private function loadRolesCollection(string $cacheKey)
+    {
+        $roles = Cache::remember($cacheKey, TenantCache::ROLES_TTL, function () {
+            return Role::query()
+                ->with('permissions')
+                ->orderBy('name')
+                ->get();
+        });
+
+        if ($roles->isEmpty()) {
+            return $roles;
+        }
+
+        $cachedFirstExternalId = $roles->first()->external_id;
+
+        $stillExists = Role::query()
+            ->where('external_id', $cachedFirstExternalId)
+            ->exists();
+
+        if ($stillExists) {
+            return $roles;
+        }
+
+        Cache::forget($cacheKey);
+
+        return Cache::remember($cacheKey, TenantCache::ROLES_TTL, function () {
+            return Role::query()
+                ->with('permissions')
+                ->orderBy('name')
+                ->get();
+        });
     }
 }

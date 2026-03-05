@@ -3,7 +3,7 @@ services:
     image: nginx:alpine
     container_name: escola_nginx
     ports:
-      - "8081:80"
+      - "80:80"
     volumes:
       - ./backend:/var/www/backend:z
       - ./frontend:/var/www/frontend:z
@@ -29,7 +29,7 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
-    command: sh -lc "chmod -R 0777 /var/www/backend/storage /var/www/backend/bootstrap/cache && php-fpm"
+    command: sh -lc "chown -R www-data:www-data /var/www/backend/storage /var/www/backend/bootstrap/cache && php-fpm"
     networks:
       - escola_network
 
@@ -46,7 +46,7 @@ services:
       - mysql
       - redis
       - app
-    command: sh -lc "chmod -R 0777 /var/www/backend/storage /var/www/backend/bootstrap/cache && php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600"
+    command: sh -lc "chown -R www-data:www-data /var/www/backend/storage /var/www/backend/bootstrap/cache && php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600"
     restart: unless-stopped
     networks:
       - escola_network
@@ -58,7 +58,7 @@ services:
     volumes:
       - ./frontend:/var/www/frontend:z
       - frontend_node_modules:/var/www/frontend/node_modules
-    command: sh -lc "npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -lc "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     networks:
       - escola_network
 

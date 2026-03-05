@@ -25,7 +25,7 @@ class EnrollmentSeeder extends Seeder
             ->groupBy('school_id');
 
         $usersBySchool = User::query()
-            ->where('email', 'like', 'usuario.%@escola.local')
+            ->where('email', 'like', 'usuario.%@example.com')
             ->whereNotNull('school_id')
             ->orderBy('id')
             ->get(['id', 'school_id'])
@@ -49,6 +49,7 @@ class EnrollmentSeeder extends Seeder
 
                 Enrollment::query()->withTrashed()->updateOrCreate(
                     [
+                        'school_id' => $class->school_id,
                         'user_id' => $user->id,
                         'class_id' => $class->id,
                         'subject_id' => $subject->id,

@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class LoginRequest extends FormRequest
+class ForgotPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -15,8 +15,6 @@ class LoginRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email:rfc,dns'],
-            'password' => ['required', 'string'],
-            'device_name' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

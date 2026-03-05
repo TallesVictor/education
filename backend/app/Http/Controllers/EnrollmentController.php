@@ -49,6 +49,7 @@ class EnrollmentController extends Controller
         );
 
         $enrollment = $this->enrollmentService->enroll(
+            schoolId: $class->school_id,
             userId: $user->id,
             classId: $class->id,
             subjectId: $subject->id,
@@ -67,12 +68,24 @@ class EnrollmentController extends Controller
         $class = SchoolClass::query()->where('external_id', $request->string('class_external_id'))->firstOrFail();
         $subject = Subject::query()->where('external_id', $request->string('subject_external_id'))->firstOrFail();
 
+        abort_if($class->school_id !== $subject->school_id, 422, 'Turma e disciplina devem pertencer à mesma escola.');
+
+        if (!$request->user()->isAdmin()) {
+            $tenantId = app()->bound('tenant')
+                ? app('tenant')
+                : $request->user()->school_id;
+
+            abort_if($class->school_id !== $tenantId, 403, 'Turma não pertence ao tenant ativo.');
+            abort_if($subject->school_id !== $tenantId, 403, 'Disciplina não pertence ao tenant ativo.');
+        }
+
         $students = User::query()
             ->whereIn('external_id', $request->input('student_external_ids'))
             ->pluck('id')
             ->all();
 
         $count = $this->enrollmentService->bulkEnroll(
+            schoolId: $class->school_id,
             studentIds: $students,
             classId: $class->id,
             subjectId: $subject->id,
@@ -125,7 +138,9 @@ class EnrollmentController extends Controller
         $subject = Subject::query()->where('external_id', $subjectExternalId)->firstOrFail();
 
         if (!$request->user()->isAdmin()) {
-            $tenantId = app('tenant.school_id');
+            $tenantId = app()->bound('tenant')
+                ? app('tenant')
+                : $request->user()->school_id;
 
             abort_if($user->school_id !== $tenantId, 403, 'Usuário não pertence ao tenant ativo.');
             abort_if($class->school_id !== $tenantId, 403, 'Turma não pertence ao tenant ativo.');
@@ -137,7 +152,7 @@ class EnrollmentController extends Controller
 
     private function applyTenantScope(Builder $query, Request $request): void
     {
-        $tenantId = app()->bound('tenant.school_id') ? app('tenant.school_id') : null;
+        $tenantId = app()->bound('tenant') ? app('tenant') : null;
 
         if (!$tenantId || $request->user()->isAdmin()) {
             return;

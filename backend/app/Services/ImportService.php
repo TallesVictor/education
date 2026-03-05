@@ -5,9 +5,10 @@ namespace App\Services;
 use App\Exports\ImportErrorsExport;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use App\Rules\CpfRule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -83,8 +84,15 @@ class ImportService
                 continue;
             }
 
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            if (!$this->isValidEmail($email)) {
                 $message = 'E-mail inválido.';
+                $errors[] = ['line' => $line, 'email' => $email, 'cpf' => $cpf, 'message' => $message];
+                $previewRows[] = $this->previewLine($line, $name, $email, $cpf, 'invalid', $message);
+                continue;
+            }
+
+            if ($cpf && !$this->isValidCpf($cpf)) {
+                $message = 'CPF inválido.';
                 $errors[] = ['line' => $line, 'email' => $email, 'cpf' => $cpf, 'message' => $message];
                 $previewRows[] = $this->previewLine($line, $name, $email, $cpf, 'invalid', $message);
                 continue;
@@ -164,12 +172,12 @@ class ImportService
                             ['role_id' => $roleId, 'deleted_at' => null],
                         );
                 }
-            } catch (\Throwable $exception) {
+            } catch (\Throwable) {
                 $errors[] = [
                     'line' => $line,
                     'email' => $email,
                     'cpf' => $cpf,
-                    'message' => 'Erro ao processar registro: '.$exception->getMessage(),
+                    'message' => 'Erro ao processar registro.',
                 ];
             }
         }
@@ -253,6 +261,22 @@ class ImportService
         config(['excel.temporary_files.local_path' => $temporaryPath]);
     }
 
+    private function isValidEmail(string $email): bool
+    {
+        return Validator::make(
+            ['email' => $email],
+            ['email' => ['required', 'email:rfc,dns']],
+        )->passes();
+    }
+
+    private function isValidCpf(string $cpf): bool
+    {
+        return Validator::make(
+            ['cpf' => $cpf],
+            ['cpf' => ['required', new CpfRule()]],
+        )->passes();
+    }
+
     /**
      * @param  array<int, array{line:int, message:string, email?:string|null, cpf?:string|null}>  $errors
      */
@@ -262,7 +286,7 @@ class ImportService
 
         Excel::store(new ImportErrorsExport($errors), $filename, 'public');
 
-        return Storage::disk('public')->url($filename);
+        return '/storage/'.$filename;
     }
 
     /**

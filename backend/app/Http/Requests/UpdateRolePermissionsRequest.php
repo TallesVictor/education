@@ -14,8 +14,8 @@ class UpdateRolePermissionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'permission_external_ids' => ['required', 'array'],
-            'permission_external_ids.*' => ['string', 'size:21'],
+            'permission_ids' => ['required', 'array'],
+            'permission_ids.*' => ['integer', 'exists:permissions,id'],
         ];
     }
 }

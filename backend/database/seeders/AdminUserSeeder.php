@@ -14,8 +14,8 @@ class AdminUserSeeder extends Seeder
     {
         $adminRole = Role::query()->where('name', 'Admin')->firstOrFail();
 
-        $admin = User::query()->firstOrCreate(
-            ['email' => 'admin@escola.local'],
+        $admin = User::query()->updateOrCreate(
+            ['email' => 'admin@example.com'],
             [
                 'name' => 'Administrador Global',
                 'social_name' => 'Admin',

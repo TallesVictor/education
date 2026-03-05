@@ -1,8 +1,28 @@
 import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import { api } from '../api/client'
+import { PaginationControls } from '../components/PaginationControls'
+import { useToast } from '../hooks/useToast'
 
-const enrollmentInitialValues = {
+const individualSchema = z.object({
+  user_external_id: z.string().min(1, 'Aluno é obrigatório.'),
+  class_external_id: z.string().min(1, 'Turma é obrigatória.'),
+  subject_external_id: z.string().min(1, 'Disciplina é obrigatória.'),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+})
+
+const bulkSchema = z.object({
+  class_external_id: z.string().min(1, 'Turma é obrigatória.'),
+  subject_external_id: z.string().min(1, 'Disciplina é obrigatória.'),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+})
+
+const individualDefaults = {
   user_external_id: '',
   class_external_id: '',
   subject_external_id: '',
@@ -10,7 +30,7 @@ const enrollmentInitialValues = {
   end_date: '',
 }
 
-const bulkInitialValues = {
+const bulkDefaults = {
   class_external_id: '',
   subject_external_id: '',
   start_date: '',
@@ -19,17 +39,30 @@ const bulkInitialValues = {
 
 export function EnrollmentsPage() {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [statusMessage, setStatusMessage] = useState('')
-  const [enrollmentForm, setEnrollmentForm] = useState(enrollmentInitialValues)
-  const [bulkForm, setBulkForm] = useState(bulkInitialValues)
   const [studentSearch, setStudentSearch] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
+  const [page, setPage] = useState(1)
+
+  const individualForm = useForm({
+    resolver: zodResolver(individualSchema),
+    defaultValues: individualDefaults,
+  })
+
+  const bulkForm = useForm({
+    resolver: zodResolver(bulkSchema),
+    defaultValues: bulkDefaults,
+  })
 
   const enrollmentsQuery = useQuery({
-    queryKey: ['enrollments'],
+    queryKey: ['enrollments', page],
     queryFn: async () => {
-      const { data } = await api.get('/enrollments', { params: { per_page: 200 } })
-      return data.data
+      const { data } = await api.get('/enrollments', { params: { page, per_page: 15 } })
+      return {
+        data: data.data,
+        meta: data.meta,
+      }
     },
   })
 
@@ -64,33 +97,35 @@ export function EnrollmentsPage() {
   })
 
   const saveEnrollmentMutation = useMutation({
-    mutationFn: async () => {
-      await api.post('/enrollments', enrollmentForm)
+    mutationFn: async (payload) => {
+      await api.post('/enrollments', payload)
     },
     onSuccess: async () => {
-      setEnrollmentForm(enrollmentInitialValues)
+      individualForm.reset(individualDefaults)
       setStatusMessage('Matrícula individual criada com sucesso.')
+      toast.success('Matrícula individual criada com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['enrollments'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível criar a matrícula individual.')
+      toast.error('Não foi possível criar a matrícula individual.')
     },
   })
 
   const bulkEnrollmentMutation = useMutation({
-    mutationFn: async () => {
-      await api.post('/enrollments/bulk', {
-        ...bulkForm,
-        student_external_ids: selectedStudentIds,
-      })
+    mutationFn: async (payload) => {
+      await api.post('/enrollments/bulk', payload)
     },
     onSuccess: async () => {
+      bulkForm.reset(bulkDefaults)
       setSelectedStudentIds([])
       setStatusMessage('Matrículas em lote processadas com sucesso.')
+      toast.success('Matrículas em lote processadas com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['enrollments'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível processar as matrículas em lote.')
+      toast.error('Não foi possível processar as matrículas em lote.')
     },
   })
 
@@ -100,10 +135,12 @@ export function EnrollmentsPage() {
     },
     onSuccess: async () => {
       setStatusMessage('Matrícula removida com sucesso.')
+      toast.success('Matrícula removida com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['enrollments'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível remover a matrícula.')
+      toast.error('Não foi possível remover a matrícula.')
     },
   })
 
@@ -124,16 +161,6 @@ export function EnrollmentsPage() {
 
     return students.every((student) => selectedStudentIds.includes(student.external_id))
   }, [students, selectedStudentIds])
-
-  function handleEnrollmentFieldChange(event) {
-    const { name, value } = event.target
-    setEnrollmentForm((current) => ({ ...current, [name]: value }))
-  }
-
-  function handleBulkFieldChange(event) {
-    const { name, value } = event.target
-    setBulkForm((current) => ({ ...current, [name]: value }))
-  }
 
   function toggleStudent(studentExternalId) {
     setSelectedStudentIds((current) => {
@@ -161,28 +188,29 @@ export function EnrollmentsPage() {
     })
   }
 
-  function submitIndividual(event) {
-    event.preventDefault()
-    saveEnrollmentMutation.mutate()
-  }
+  const submitIndividual = individualForm.handleSubmit((values) => {
+    saveEnrollmentMutation.mutate(values)
+  })
 
-  function submitBulk(event) {
-    event.preventDefault()
-
+  const submitBulk = bulkForm.handleSubmit((values) => {
     if (selectedStudentIds.length === 0) {
       setStatusMessage('Selecione ao menos um aluno para o vínculo em lote.')
+      toast.info('Selecione ao menos um aluno para o vínculo em lote.')
       return
     }
 
-    bulkEnrollmentMutation.mutate()
-  }
+    bulkEnrollmentMutation.mutate({
+      ...values,
+      student_external_ids: selectedStudentIds,
+    })
+  })
 
   return (
     <div className="module-stack">
       <section className="module-card">
         <div className="section-title-row">
           <h3>Matrículas</h3>
-          <p>{enrollmentsQuery.data?.length ?? 0} vínculos ativos</p>
+          <p>{enrollmentsQuery.data?.meta?.total ?? 0} vínculos ativos</p>
         </div>
 
         <div className="table-wrap">
@@ -198,7 +226,7 @@ export function EnrollmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {(enrollmentsQuery.data ?? []).map((enrollment) => (
+              {(enrollmentsQuery.data?.data ?? []).map((enrollment) => (
                 <tr key={enrollment.external_id}>
                   <td>{enrollment.user_name}</td>
                   <td>{enrollment.class_name}</td>
@@ -219,6 +247,11 @@ export function EnrollmentsPage() {
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          meta={enrollmentsQuery.data?.meta}
+          onPageChange={(nextPage) => setPage(Math.max(1, nextPage))}
+        />
       </section>
 
       <div className="module-grid">
@@ -231,12 +264,7 @@ export function EnrollmentsPage() {
           <form className="stack-form" onSubmit={submitIndividual}>
             <label>
               <span>Aluno *</span>
-              <select
-                name="user_external_id"
-                value={enrollmentForm.user_external_id}
-                onChange={handleEnrollmentFieldChange}
-                required
-              >
+              <select {...individualForm.register('user_external_id')}>
                 <option value="">Selecione</option>
                 {(studentsQuery.data ?? []).map((student) => (
                   <option key={student.external_id} value={student.external_id}>
@@ -244,16 +272,16 @@ export function EnrollmentsPage() {
                   </option>
                 ))}
               </select>
+              {individualForm.formState.errors.user_external_id && (
+                <small className="error-text">
+                  {individualForm.formState.errors.user_external_id.message}
+                </small>
+              )}
             </label>
 
             <label>
               <span>Turma *</span>
-              <select
-                name="class_external_id"
-                value={enrollmentForm.class_external_id}
-                onChange={handleEnrollmentFieldChange}
-                required
-              >
+              <select {...individualForm.register('class_external_id')}>
                 <option value="">Selecione</option>
                 {(classesQuery.data ?? []).map((schoolClass) => (
                   <option key={schoolClass.external_id} value={schoolClass.external_id}>
@@ -261,16 +289,16 @@ export function EnrollmentsPage() {
                   </option>
                 ))}
               </select>
+              {individualForm.formState.errors.class_external_id && (
+                <small className="error-text">
+                  {individualForm.formState.errors.class_external_id.message}
+                </small>
+              )}
             </label>
 
             <label>
               <span>Disciplina *</span>
-              <select
-                name="subject_external_id"
-                value={enrollmentForm.subject_external_id}
-                onChange={handleEnrollmentFieldChange}
-                required
-              >
+              <select {...individualForm.register('subject_external_id')}>
                 <option value="">Selecione</option>
                 {(subjectsQuery.data ?? []).map((subject) => (
                   <option key={subject.external_id} value={subject.external_id}>
@@ -278,26 +306,21 @@ export function EnrollmentsPage() {
                   </option>
                 ))}
               </select>
+              {individualForm.formState.errors.subject_external_id && (
+                <small className="error-text">
+                  {individualForm.formState.errors.subject_external_id.message}
+                </small>
+              )}
             </label>
 
             <label>
               <span>Início</span>
-              <input
-                type="date"
-                name="start_date"
-                value={enrollmentForm.start_date}
-                onChange={handleEnrollmentFieldChange}
-              />
+              <input type="date" {...individualForm.register('start_date')} />
             </label>
 
             <label>
               <span>Fim</span>
-              <input
-                type="date"
-                name="end_date"
-                value={enrollmentForm.end_date}
-                onChange={handleEnrollmentFieldChange}
-              />
+              <input type="date" {...individualForm.register('end_date')} />
             </label>
 
             <button type="submit" disabled={saveEnrollmentMutation.isPending}>
@@ -315,12 +338,7 @@ export function EnrollmentsPage() {
           <form className="stack-form" onSubmit={submitBulk}>
             <label>
               <span>Turma *</span>
-              <select
-                name="class_external_id"
-                value={bulkForm.class_external_id}
-                onChange={handleBulkFieldChange}
-                required
-              >
+              <select {...bulkForm.register('class_external_id')}>
                 <option value="">Selecione</option>
                 {(classesQuery.data ?? []).map((schoolClass) => (
                   <option key={schoolClass.external_id} value={schoolClass.external_id}>
@@ -328,16 +346,14 @@ export function EnrollmentsPage() {
                   </option>
                 ))}
               </select>
+              {bulkForm.formState.errors.class_external_id && (
+                <small className="error-text">{bulkForm.formState.errors.class_external_id.message}</small>
+              )}
             </label>
 
             <label>
               <span>Disciplina *</span>
-              <select
-                name="subject_external_id"
-                value={bulkForm.subject_external_id}
-                onChange={handleBulkFieldChange}
-                required
-              >
+              <select {...bulkForm.register('subject_external_id')}>
                 <option value="">Selecione</option>
                 {(subjectsQuery.data ?? []).map((subject) => (
                   <option key={subject.external_id} value={subject.external_id}>
@@ -345,6 +361,9 @@ export function EnrollmentsPage() {
                   </option>
                 ))}
               </select>
+              {bulkForm.formState.errors.subject_external_id && (
+                <small className="error-text">{bulkForm.formState.errors.subject_external_id.message}</small>
+              )}
             </label>
 
             <label>
@@ -380,22 +399,12 @@ export function EnrollmentsPage() {
 
             <label>
               <span>Início</span>
-              <input
-                type="date"
-                name="start_date"
-                value={bulkForm.start_date}
-                onChange={handleBulkFieldChange}
-              />
+              <input type="date" {...bulkForm.register('start_date')} />
             </label>
 
             <label>
               <span>Fim</span>
-              <input
-                type="date"
-                name="end_date"
-                value={bulkForm.end_date}
-                onChange={handleBulkFieldChange}
-              />
+              <input type="date" {...bulkForm.register('end_date')} />
             </label>
 
             <button type="submit" disabled={bulkEnrollmentMutation.isPending}>

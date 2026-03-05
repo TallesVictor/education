@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { PaginationControls } from './PaginationControls'
+import { useToast } from '../hooks/useToast'
+
+const PAGE_SIZE = 15
 
 export function CrudModule({
   title,
@@ -12,15 +16,32 @@ export function CrudModule({
   schema,
   initialValues,
   transformSubmit,
+  filterFields = [],
+  defaultFilters = {},
+  fixedParams = {},
 }) {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState(defaultFilters)
 
   const listQuery = useQuery({
-    queryKey: [endpoint],
+    queryKey: [endpoint, page, filters, fixedParams],
     queryFn: async () => {
-      const { data } = await api.get(`/${endpoint}`)
-      return data.data
+      const { data } = await api.get(`/${endpoint}`, {
+        params: {
+          ...fixedParams,
+          ...filters,
+          page,
+          per_page: PAGE_SIZE,
+        },
+      })
+
+      return {
+        data: data.data ?? [],
+        meta: data.meta ?? null,
+      }
     },
   })
 
@@ -29,9 +50,17 @@ export function CrudModule({
     defaultValues: initialValues,
   })
 
+  const totalRecords = useMemo(() => {
+    if (listQuery.data?.meta?.total !== undefined) {
+      return listQuery.data.meta.total
+    }
+
+    return listQuery.data?.data?.length ?? 0
+  }, [listQuery.data])
+
   const saveMutation = useMutation({
     mutationFn: async (values) => {
-      const payload = transformSubmit ? transformSubmit(values) : values
+      const payload = transformSubmit ? transformSubmit(values, editing) : values
 
       if (editing) {
         await api.put(`/${endpoint}/${editing.external_id}`, payload)
@@ -42,7 +71,11 @@ export function CrudModule({
     onSuccess: async () => {
       setEditing(null)
       form.reset(initialValues)
+      toast.success(`${title} salvo com sucesso.`)
       await queryClient.invalidateQueries({ queryKey: [endpoint] })
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || `Não foi possível salvar ${title.toLowerCase()}.`)
     },
   })
 
@@ -51,7 +84,11 @@ export function CrudModule({
       await api.delete(`/${endpoint}/${externalId}`)
     },
     onSuccess: async () => {
+      toast.success(`${title} removido com sucesso.`)
       await queryClient.invalidateQueries({ queryKey: [endpoint] })
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || `Não foi possível remover ${title.toLowerCase()}.`)
     },
   })
 
@@ -59,7 +96,8 @@ export function CrudModule({
     setEditing(item)
 
     for (const field of fields) {
-      form.setValue(field.name, item[field.name] ?? '')
+      const value = field.getValue ? field.getValue(item) : item[field.name]
+      form.setValue(field.name, value ?? (field.type === 'multiselect' ? [] : ''))
     }
   }
 
@@ -68,13 +106,63 @@ export function CrudModule({
     form.reset(initialValues)
   }
 
+  function setFilterValue(name, value) {
+    setPage(1)
+    setFilters((current) => ({
+      ...current,
+      [name]: value,
+    }))
+  }
+
+  function clearFilters() {
+    setPage(1)
+    setFilters(defaultFilters)
+  }
+
   return (
     <div className="module-grid">
       <section className="module-card">
         <div className="section-title-row">
           <h3>{title}</h3>
-          <p>{listQuery.data?.length ?? 0} registros</p>
+          <p>{totalRecords} registros</p>
         </div>
+
+        {filterFields.length > 0 && (
+          <div className="filters-row">
+            {filterFields.map((field) => (
+              <label key={field.name}>
+                <span>{field.label}</span>
+
+                {field.type === 'select' ? (
+                  <select
+                    value={filters[field.name] ?? ''}
+                    onChange={(event) => setFilterValue(field.name, event.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {field.options?.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type || 'text'}
+                    value={filters[field.name] ?? ''}
+                    placeholder={field.placeholder || ''}
+                    onChange={(event) => setFilterValue(field.name, event.target.value)}
+                  />
+                )}
+              </label>
+            ))}
+
+            <div className="actions-row">
+              <button type="button" className="ghost-chip" onClick={clearFilters}>
+                Limpar filtros
+              </button>
+            </div>
+          </div>
+        )}
 
         {listQuery.isLoading && <p>Carregando...</p>}
 
@@ -89,10 +177,12 @@ export function CrudModule({
               </tr>
             </thead>
             <tbody>
-              {(listQuery.data ?? []).map((row) => (
+              {(listQuery.data?.data ?? []).map((row) => (
                 <tr key={row.external_id}>
                   {columns.map((column) => (
-                    <td key={column.key}>{row[column.key] ?? '-'}</td>
+                    <td key={column.key}>
+                      {column.render ? column.render(row) : row[column.key] ?? '-'}
+                    </td>
                   ))}
                   <td className="actions-cell">
                     <button type="button" onClick={() => onEdit(row)}>
@@ -111,6 +201,11 @@ export function CrudModule({
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          meta={listQuery.data?.meta}
+          onPageChange={(nextPage) => setPage(Math.max(1, nextPage))}
+        />
       </section>
 
       <section className="module-card">
@@ -146,7 +241,17 @@ export function CrudModule({
                 </select>
               )}
 
-              {!['textarea', 'select'].includes(field.type) && (
+              {field.type === 'multiselect' && (
+                <select multiple {...form.register(field.name)}>
+                  {field.options?.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {!['textarea', 'select', 'multiselect'].includes(field.type) && (
                 <input
                   type={field.type || 'text'}
                   placeholder={field.placeholder ?? ''}

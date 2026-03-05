@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { CrudModule } from '../components/CrudModule'
+import { useToast } from '../hooks/useToast'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -16,6 +17,7 @@ const schema = z.object({
 })
 
 export function UsersPage() {
+  const toast = useToast()
   const [importFile, setImportFile] = useState(null)
   const [importRoleExternalId, setImportRoleExternalId] = useState('')
   const [importSchoolExternalId, setImportSchoolExternalId] = useState('')
@@ -85,9 +87,11 @@ export function UsersPage() {
       setPreviewData(payload)
       setResultData(null)
       setStatusMessage('Prévia gerada. Revise os dados e confirme a importação.')
+      toast.success('Prévia gerada com sucesso.')
     },
     onError: () => {
       setStatusMessage('Não foi possível gerar a prévia da importação.')
+      toast.error('Não foi possível gerar a prévia.')
     },
   })
 
@@ -99,9 +103,11 @@ export function UsersPage() {
     onSuccess: (payload) => {
       setResultData(payload)
       setStatusMessage('Importação concluída com sucesso.')
+      toast.success('Importação concluída com sucesso.')
     },
     onError: () => {
       setStatusMessage('Não foi possível concluir a importação.')
+      toast.error('Não foi possível concluir a importação.')
     },
   })
 
@@ -118,12 +124,14 @@ export function UsersPage() {
       window.URL.revokeObjectURL(blobUrl)
     } catch {
       setStatusMessage('Não foi possível baixar o modelo de importação.')
+      toast.error('Não foi possível baixar o modelo.')
     }
   }
 
   function handlePreview() {
     if (!importFile || !effectiveImportRoleExternalId) {
       setStatusMessage('Selecione arquivo e perfil para gerar a prévia.')
+      toast.info('Selecione arquivo e perfil para gerar a prévia.')
       return
     }
 
@@ -133,6 +141,7 @@ export function UsersPage() {
   function handleConfirmImport() {
     if (!importFile || !effectiveImportRoleExternalId) {
       setStatusMessage('Selecione arquivo e perfil para confirmar a importação.')
+      toast.info('Selecione arquivo e perfil para confirmar a importação.')
       return
     }
 
@@ -159,6 +168,21 @@ export function UsersPage() {
           { key: 'email', label: 'E-mail' },
           { key: 'role_name', label: 'Perfil' },
           { key: 'cpf', label: 'CPF' },
+        ]}
+        defaultFilters={{
+          name: '',
+          email: '',
+          role_external_id: '',
+        }}
+        filterFields={[
+          { name: 'name', label: 'Filtro por nome', placeholder: 'Digite o nome' },
+          { name: 'email', label: 'Filtro por e-mail', placeholder: 'Digite o e-mail' },
+          {
+            name: 'role_external_id',
+            label: 'Filtro por perfil',
+            type: 'select',
+            options: roleOptions,
+          },
         ]}
         schema={schema}
         initialValues={{
@@ -303,7 +327,7 @@ export function UsersPage() {
               {resultData.errors_count} erros.
             </p>
             {resultData.error_report_url && (
-              <a href={resultData.error_report_url} target="_blank" rel="noreferrer">
+              <a href={resultData.error_report_url} target="_blank" rel="noopener noreferrer">
                 Baixar relatório de erros (XLSX)
               </a>
             )}

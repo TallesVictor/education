@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { api } from '../api/client'
+import { PaginationControls } from '../components/PaginationControls'
+import { useToast } from '../hooks/useToast'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório.'),
@@ -33,7 +35,9 @@ const initialValues = {
 
 export function SchoolsPage() {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
 
   const form = useForm({
@@ -42,10 +46,13 @@ export function SchoolsPage() {
   })
 
   const schoolsQuery = useQuery({
-    queryKey: ['schools'],
+    queryKey: ['schools', page],
     queryFn: async () => {
-      const { data } = await api.get('/schools', { params: { per_page: 200 } })
-      return data.data
+      const { data } = await api.get('/schools', { params: { page, per_page: 15 } })
+      return {
+        data: data.data,
+        meta: data.meta,
+      }
     },
   })
 
@@ -61,11 +68,13 @@ export function SchoolsPage() {
       setEditing(null)
       form.reset(initialValues)
       setStatusMessage('Escola salva com sucesso.')
+      toast.success('Escola salva com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['schools'] })
     },
     onError: (error) => {
       const apiMessage = error?.response?.data?.message
       setStatusMessage(apiMessage || 'Não foi possível salvar a escola.')
+      toast.error(apiMessage || 'Não foi possível salvar a escola.')
     },
   })
 
@@ -75,10 +84,12 @@ export function SchoolsPage() {
     },
     onSuccess: async () => {
       setStatusMessage('Escola removida com sucesso.')
+      toast.success('Escola removida com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['schools'] })
     },
     onError: () => {
       setStatusMessage('Não foi possível remover a escola.')
+      toast.error('Não foi possível remover a escola.')
     },
   })
 
@@ -98,8 +109,10 @@ export function SchoolsPage() {
       form.setValue('city', payload.localidade || '')
       form.setValue('state', payload.uf || '')
       setStatusMessage('Endereço preenchido via ViaCEP.')
+      toast.info('Endereço preenchido via ViaCEP.')
     } catch {
       setStatusMessage('Não foi possível localizar o CEP informado.')
+      toast.error('Não foi possível localizar o CEP informado.')
     }
   }
 
@@ -120,7 +133,7 @@ export function SchoolsPage() {
       <section className="module-card">
         <div className="section-title-row">
           <h3>Escolas</h3>
-          <p>{schoolsQuery.data?.length ?? 0} registros</p>
+          <p>{schoolsQuery.data?.meta?.total ?? 0} registros</p>
         </div>
 
         {schoolsQuery.isLoading && <p>Carregando...</p>}
@@ -136,7 +149,7 @@ export function SchoolsPage() {
               </tr>
             </thead>
             <tbody>
-              {(schoolsQuery.data ?? []).map((school) => (
+              {(schoolsQuery.data?.data ?? []).map((school) => (
                 <tr key={school.external_id}>
                   <td>{school.name}</td>
                   <td>{school.type === 'public' ? 'Pública' : 'Privada'}</td>
@@ -158,6 +171,11 @@ export function SchoolsPage() {
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          meta={schoolsQuery.data?.meta}
+          onPageChange={(nextPage) => setPage(Math.max(1, nextPage))}
+        />
       </section>
 
       <section className="module-card">

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -26,7 +28,14 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken($request->input('device_name', 'web'))->plainTextToken;
+        $tokenExpiryMinutes = (int) config('sanctum.expiration', 120);
+        $tokenExpiresAt = now()->addMinutes($tokenExpiryMinutes);
+
+        $token = $user->createToken(
+            $request->input('device_name', 'web'),
+            ['*'],
+            $tokenExpiresAt
+        )->plainTextToken;
 
         return response()->json([
             'data' => [
@@ -72,14 +81,10 @@ class AuthController extends Controller
         ]);
     }
 
-    public function forgotPassword(Request $request): JsonResponse
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-        ]);
-
         $status = Password::sendResetLink([
-            'email' => $validated['email'],
+            'email' => $request->string('email'),
         ]);
 
         if ($status !== Password::RESET_LINK_SENT) {
@@ -93,16 +98,10 @@ class AuthController extends Controller
         ]);
     }
 
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', 'min:6'],
-        ]);
-
         $status = Password::reset(
-            $validated,
+            $request->validated(),
             function (User $user, string $password): void {
                 $user->forceFill([
                     'password' => Hash::make($password),

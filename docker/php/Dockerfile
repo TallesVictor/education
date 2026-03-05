@@ -15,9 +15,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/backend
+
+RUN mkdir -p /var/www/backend/storage /var/www/backend/bootstrap/cache \
+    && chown -R www-data:www-data /var/www/backend/storage /var/www/backend/bootstrap/cache
 
 EXPOSE 9000
 CMD ["php-fpm"]

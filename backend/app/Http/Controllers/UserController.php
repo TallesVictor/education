@@ -38,7 +38,7 @@ class UserController extends Controller
             ->orderByDesc('id');
 
         if (!$request->user()->isAdmin()) {
-            $query->where('school_id', app('tenant.school_id'));
+            $query->where('school_id', app()->bound('tenant') ? app('tenant') : null);
         }
 
         $users = $query->paginate((int) $request->input('per_page', 15));
@@ -59,7 +59,7 @@ class UserController extends Controller
         $query = User::query()->with(['school', 'schoolRoles.role'])->where('external_id', $externalId);
 
         if (!$request->user()->isAdmin()) {
-            $query->where('school_id', app('tenant.school_id'));
+            $query->where('school_id', app()->bound('tenant') ? app('tenant') : null);
         }
 
         $user = $query->firstOrFail();
@@ -73,6 +73,7 @@ class UserController extends Controller
     {
         $schoolId = $this->resolveSchoolId($request);
         $role = Role::query()->where('external_id', $request->string('role_external_id'))->firstOrFail();
+        $this->assertRoleAssignmentAllowed($request, $role);
 
         $user = User::query()->create([
             'school_id' => $schoolId,
@@ -100,7 +101,7 @@ class UserController extends Controller
         $query = User::query()->where('external_id', $externalId);
 
         if (!$request->user()->isAdmin()) {
-            $query->where('school_id', app('tenant.school_id'));
+            $query->where('school_id', app()->bound('tenant') ? app('tenant') : null);
         }
 
         $user = $query->firstOrFail();
@@ -137,6 +138,7 @@ class UserController extends Controller
 
         if ($request->filled('role_external_id')) {
             $role = Role::query()->where('external_id', $request->string('role_external_id'))->firstOrFail();
+            $this->assertRoleAssignmentAllowed($request, $role);
             $schoolId = $user->school_id;
 
             UserSchoolRole::query()
@@ -157,7 +159,7 @@ class UserController extends Controller
         $query = User::query()->where('external_id', $externalId);
 
         if (!$request->user()->isAdmin()) {
-            $query->where('school_id', app('tenant.school_id'));
+            $query->where('school_id', app()->bound('tenant') ? app('tenant') : null);
         }
 
         $user = $query->firstOrFail();
@@ -177,6 +179,7 @@ class UserController extends Controller
         $role = Role::query()
             ->where('external_id', $request->string('role_external_id'))
             ->firstOrFail();
+        $this->assertRoleAssignmentAllowed($request, $role);
 
         if ($request->boolean('preview')) {
             $preview = $this->importService->previewUsers(
@@ -230,15 +233,30 @@ class UserController extends Controller
     private function resolveSchoolId(Request $request): ?int
     {
         if (!$request->user()->isAdmin()) {
-            return app('tenant.school_id');
+            return app()->bound('tenant') ? app('tenant') : null;
         }
 
         if (!$request->filled('school_external_id')) {
             return null;
         }
 
-        return School::query()
+        $schoolId = School::query()
             ->where('external_id', $request->string('school_external_id'))
             ->value('id');
+
+        if (!$schoolId) {
+            throw ValidationException::withMessages([
+                'school_external_id' => ['Escola informada não encontrada.'],
+            ]);
+        }
+
+        return (int) $schoolId;
+    }
+
+    private function assertRoleAssignmentAllowed(Request $request, Role $role): void
+    {
+        if ($role->name === 'Admin' && !$request->user()->isAdmin()) {
+            abort(403, 'Atribuição do perfil Admin permitida apenas para administradores.');
+        }
     }
 }

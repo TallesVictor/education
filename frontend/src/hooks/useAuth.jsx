@@ -1,38 +1,32 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { api, TOKEN_KEY } from '../api/client'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { api, clearApiToken, setApiAuthHandlers, setApiToken } from '../api/client'
 
 const AuthContext = createContext(null)
 
-const USER_KEY = 'sistema_escolar_user'
-
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY))
-  const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem(USER_KEY)
-    return raw ? JSON.parse(raw) : null
-  })
-  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem(TOKEN_KEY)))
+  const [token, setToken] = useState(null)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const clearSession = useCallback(() => {
+    clearApiToken()
+    setToken(null)
+    setUser(null)
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    if (!token) {
-      return
-    }
+    setApiAuthHandlers({
+      onUnauthorized: () => {
+        clearSession()
+      },
+    })
 
-    api
-      .get('/auth/me')
-      .then(({ data }) => {
-        setUser(data.data.user)
-        localStorage.setItem(USER_KEY, JSON.stringify(data.data.user))
-      })
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
-        setToken(null)
-        setUser(null)
-      })
-      .finally(() => setLoading(false))
-  }, [token])
+    return () => {
+      setApiAuthHandlers()
+    }
+  }, [clearSession])
 
   const value = useMemo(
     () => ({
@@ -42,16 +36,19 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token),
       async login(email, password) {
         setLoading(true)
-        const { data } = await api.post('/auth/login', {
-          email,
-          password,
-          device_name: 'frontend-web',
-        })
+        try {
+          const { data } = await api.post('/auth/login', {
+            email,
+            password,
+            device_name: 'frontend-web',
+          })
 
-        localStorage.setItem(TOKEN_KEY, data.data.token)
-        localStorage.setItem(USER_KEY, JSON.stringify(data.data.user))
-        setToken(data.data.token)
-        setUser(data.data.user)
+          setApiToken(data.data.token)
+          setToken(data.data.token)
+          setUser(data.data.user)
+        } finally {
+          setLoading(false)
+        }
       },
       async logout() {
         try {
@@ -60,14 +57,10 @@ export function AuthProvider({ children }) {
           // ignora erro no logout remoto
         }
 
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
-        setToken(null)
-        setUser(null)
-        setLoading(false)
+        clearSession()
       },
     }),
-    [token, user, loading],
+    [clearSession, token, user, loading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

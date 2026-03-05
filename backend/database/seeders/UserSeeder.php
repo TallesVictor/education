@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
                 $cpfNumber = 10_000_000_000 + $globalIndex;
 
                 User::query()->withTrashed()->updateOrCreate(
-                    ['email' => sprintf('usuario.%05d@escola.local', $globalIndex)],
+                    ['email' => sprintf('usuario.%05d@example.com', $globalIndex)],
                     [
                         'school_id' => $schoolId,
                         'name' => sprintf('Usuário %05d', $globalIndex),
