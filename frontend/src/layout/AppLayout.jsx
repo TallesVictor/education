@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { Icon } from '../components/Icon'
 
+const sidebarLogoSrc = `/logo_educ.png?v=${Date.now()}`
+
 const navGroups = [
   {
     title: 'Geral',
@@ -80,8 +82,9 @@ export function AppLayout() {
         </div>
 
         <div className="brand-block">
-          <p className="brand-overline">Plataforma Escolar</p>
-          <h1>RSoft Education</h1>
+          <img src={sidebarLogoSrc} alt="RSoft Education" className="sidebar-logo" />
+          {/* <p className="brand-overline">Plataforma Escolar</p> */}
+          {/* <h1>RSoft Education</h1> */}
           <p className="sidebar-meta">Tecnologia acadêmica para escola, professores e alunos.</p>
         </div>
 

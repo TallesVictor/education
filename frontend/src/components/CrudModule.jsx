@@ -162,6 +162,101 @@ export function CrudModule({
     setFilters(defaultFilters)
   }
 
+  function resolveFieldRequired(field) {
+    if (typeof field.required === 'function') {
+      return field.required({ editing })
+    }
+
+    return Boolean(field.required)
+  }
+
+  function renderField(field) {
+    const isRequired = resolveFieldRequired(field)
+
+    return (
+      <label key={field.name}>
+        <span>
+          {field.label}
+          {isRequired && (
+            <span className="required-indicator" aria-hidden="true">
+              *
+            </span>
+          )}
+        </span>
+
+        {field.type === 'textarea' && (
+          <textarea rows={4} {...form.register(field.name)} />
+        )}
+
+        {field.type === 'select' && (
+          <select {...form.register(field.name)}>
+            <option value="">Selecione</option>
+            {field.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {field.type === 'multiselect' && (
+          <Controller
+            name={field.name}
+            control={form.control}
+            render={({ field: controlledField, fieldState }) => (
+              <>
+                <MultiSelectField
+                  options={field.options ?? []}
+                  value={controlledField.value}
+                  onChange={controlledField.onChange}
+                  placeholder={field.placeholder || 'Selecione uma ou mais opcoes'}
+                  searchPlaceholder={field.searchPlaceholder || 'Filtrar opcoes...'}
+                />
+                {fieldState.error && (
+                  <small className="error-text">{fieldState.error.message}</small>
+                )}
+              </>
+            )}
+          />
+        )}
+
+        {!['textarea', 'select', 'multiselect'].includes(field.type) && (
+          <input
+            type={field.type || 'text'}
+            placeholder={field.placeholder ?? ''}
+            {...form.register(field.name)}
+          />
+        )}
+
+        {field.type !== 'multiselect' && form.formState.errors[field.name] && (
+          <small className="error-text">
+            {form.formState.errors[field.name]?.message}
+          </small>
+        )}
+      </label>
+    )
+  }
+
+  function renderFormFields() {
+    let previousGroup = null
+
+    return fields.flatMap((field, index) => {
+      const chunks = []
+
+      if (field.group && field.group !== previousGroup) {
+        chunks.push(
+          <p key={`group-${field.group}-${index}`} className="form-group-title">
+            {field.group}
+          </p>,
+        )
+        previousGroup = field.group
+      }
+
+      chunks.push(renderField(field))
+      return chunks
+    })
+  }
+
   return (
     <div className={isModalVariant ? 'module-grid module-grid-single' : 'module-grid'}>
       <section className="module-card">
@@ -300,61 +395,7 @@ export function CrudModule({
             className="stack-form"
             onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           >
-            {fields.map((field) => (
-              <label key={field.name}>
-                <span>{field.label}</span>
-
-                {field.type === 'textarea' && (
-                  <textarea rows={4} {...form.register(field.name)} />
-                )}
-
-                {field.type === 'select' && (
-                  <select {...form.register(field.name)}>
-                    <option value="">Selecione</option>
-                    {field.options?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {field.type === 'multiselect' && (
-                  <Controller
-                    name={field.name}
-                    control={form.control}
-                    render={({ field: controlledField, fieldState }) => (
-                      <>
-                        <MultiSelectField
-                          options={field.options ?? []}
-                          value={controlledField.value}
-                          onChange={controlledField.onChange}
-                          placeholder={field.placeholder || 'Selecione uma ou mais opcoes'}
-                          searchPlaceholder={field.searchPlaceholder || 'Filtrar opcoes...'}
-                        />
-                        {fieldState.error && (
-                          <small className="error-text">{fieldState.error.message}</small>
-                        )}
-                      </>
-                    )}
-                  />
-                )}
-
-                {!['textarea', 'select', 'multiselect'].includes(field.type) && (
-                  <input
-                    type={field.type || 'text'}
-                    placeholder={field.placeholder ?? ''}
-                    {...form.register(field.name)}
-                  />
-                )}
-
-                {field.type !== 'multiselect' && form.formState.errors[field.name] && (
-                  <small className="error-text">
-                    {form.formState.errors[field.name]?.message}
-                  </small>
-                )}
-              </label>
-            ))}
+            {renderFormFields()}
 
             <button type="submit" disabled={saveMutation.isPending}>
               <Icon name="save" size={14} />
@@ -385,61 +426,7 @@ export function CrudModule({
               className="stack-form"
               onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
             >
-              {fields.map((field) => (
-                <label key={field.name}>
-                  <span>{field.label}</span>
-
-                  {field.type === 'textarea' && (
-                    <textarea rows={4} {...form.register(field.name)} />
-                  )}
-
-                  {field.type === 'select' && (
-                    <select {...form.register(field.name)}>
-                      <option value="">Selecione</option>
-                      {field.options?.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {field.type === 'multiselect' && (
-                    <Controller
-                      name={field.name}
-                      control={form.control}
-                      render={({ field: controlledField, fieldState }) => (
-                        <>
-                          <MultiSelectField
-                            options={field.options ?? []}
-                            value={controlledField.value}
-                            onChange={controlledField.onChange}
-                            placeholder={field.placeholder || 'Selecione uma ou mais opcoes'}
-                            searchPlaceholder={field.searchPlaceholder || 'Filtrar opcoes...'}
-                          />
-                          {fieldState.error && (
-                            <small className="error-text">{fieldState.error.message}</small>
-                          )}
-                        </>
-                      )}
-                    />
-                  )}
-
-                  {!['textarea', 'select', 'multiselect'].includes(field.type) && (
-                    <input
-                      type={field.type || 'text'}
-                      placeholder={field.placeholder ?? ''}
-                      {...form.register(field.name)}
-                    />
-                  )}
-
-                  {field.type !== 'multiselect' && form.formState.errors[field.name] && (
-                    <small className="error-text">
-                      {form.formState.errors[field.name]?.message}
-                    </small>
-                  )}
-                </label>
-              ))}
+              {renderFormFields()}
 
               <button type="submit" disabled={saveMutation.isPending}>
                 <Icon name="save" size={14} />

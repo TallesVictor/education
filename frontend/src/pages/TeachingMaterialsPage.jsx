@@ -343,11 +343,6 @@ export function TeachingMaterialsPage() {
   }
 
   function onMaterialRowClick(material) {
-    if (isStudent) {
-      navigate(`/materials/${material.external_id}`)
-      return
-    }
-
     setExpandedMaterialExternalId((current) => (
       current === material.external_id ? null : material.external_id
     ))
@@ -370,15 +365,17 @@ export function TeachingMaterialsPage() {
           </div>
         )}
 
-        <AttributeSearchFilter
-          definitions={materialFilterDefinitions}
-          activeFilters={activeFilters}
-          onChange={(nextFilters) => {
-            setPage(1)
-            setActiveFilters(nextFilters)
-          }}
-          placeholder="Filtrar materiais... ex.: título:álgebra"
-        />
+        {!isStudent && (
+          <AttributeSearchFilter
+            definitions={materialFilterDefinitions}
+            activeFilters={activeFilters}
+            onChange={(nextFilters) => {
+              setPage(1)
+              setActiveFilters(nextFilters)
+            }}
+            placeholder="Filtrar materiais... ex.: título:álgebra"
+          />
+        )}
 
         {materialsQuery.isLoading && <p>Carregando materiais...</p>}
 
@@ -392,7 +389,7 @@ export function TeachingMaterialsPage() {
                 <th>Turma</th>
                 <th>Publicação</th>
                 <th>Visibilidade</th>
-                <th>Ações</th>
+                {!isStudent && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -402,8 +399,8 @@ export function TeachingMaterialsPage() {
                 return (
                   <Fragment key={material.external_id}>
                     <tr
-                      className="row-clickable"
-                      onClick={() => onMaterialRowClick(material)}
+                      className={isStudent ? undefined : 'row-clickable'}
+                      onClick={isStudent ? undefined : () => onMaterialRowClick(material)}
                       aria-expanded={!isStudent && isExpanded}
                     >
                       <td>{material.title}</td>
@@ -437,32 +434,34 @@ export function TeachingMaterialsPage() {
                           {material.is_visible_to_students ? 'Aluno e equipe' : 'Somente equipe'}
                         </span>
                       </td>
-                      <td className="actions-cell" onClick={(event) => event.stopPropagation()}>
-                        <button type="button" onClick={() => navigate(`/materials/${material.external_id}`)}>
-                          <Icon name="preview" size={14} />
-                          Visualizar
-                        </button>
-                        <a href={material.file_url} target="_blank" rel="noreferrer" className="ghost-link button-link">
-                          <Icon name="download" size={14} />
-                          Baixar
-                        </a>
-                        {canManageMaterials && (
-                          <>
-                            <button type="button" onClick={() => onEdit(material)}>
-                              <Icon name="edit" size={14} />
-                              Editar
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => deleteMutation.mutate(material.external_id)}
-                            >
-                              <Icon name="delete" size={14} />
-                              Excluir
-                            </button>
-                          </>
-                        )}
-                      </td>
+                      {!isStudent && (
+                        <td className="actions-cell" onClick={(event) => event.stopPropagation()}>
+                          <button type="button" onClick={() => navigate(`/materials/${material.external_id}`)}>
+                            <Icon name="preview" size={14} />
+                            Visualizar
+                          </button>
+                          <a href={material.file_url} target="_blank" rel="noreferrer" className="ghost-link button-link">
+                            <Icon name="download" size={14} />
+                            Baixar
+                          </a>
+                          {canManageMaterials && (
+                            <>
+                              <button type="button" onClick={() => onEdit(material)}>
+                                <Icon name="edit" size={14} />
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => deleteMutation.mutate(material.external_id)}
+                              >
+                                <Icon name="delete" size={14} />
+                                Excluir
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      )}
                     </tr>
 
                     {!isStudent && isExpanded && (

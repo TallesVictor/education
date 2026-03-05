@@ -211,23 +211,32 @@ export function UsersPage() {
           school_external_id: '',
         }}
         fields={[
-          { name: 'name', label: 'Nome *' },
-          { name: 'email', label: 'E-mail *', type: 'email' },
-          { name: 'password', label: 'Senha', type: 'password' },
-          { name: 'social_name', label: 'Nome Social' },
-          { name: 'cpf', label: 'CPF' },
-          { name: 'phone', label: 'Telefone' },
+          { name: 'name', label: 'Nome', required: true, group: 'Campos obrigatórios' },
+          { name: 'email', label: 'E-mail', type: 'email', required: true, group: 'Campos obrigatórios' },
+          {
+            name: 'password',
+            label: 'Senha',
+            type: 'password',
+            required: ({ editing }) => !editing,
+            group: 'Campos obrigatórios',
+          },
           {
             name: 'role_external_id',
-            label: 'Perfil *',
+            label: 'Perfil',
             type: 'select',
             options: roleOptions,
+            required: true,
+            group: 'Campos obrigatórios',
           },
+          { name: 'social_name', label: 'Nome Social', group: 'Campos complementares' },
+          { name: 'cpf', label: 'CPF', group: 'Campos complementares' },
+          { name: 'phone', label: 'Telefone', group: 'Campos complementares' },
           {
             name: 'school_external_id',
             label: 'Escola',
             type: 'select',
             options: schoolOptions,
+            group: 'Campos complementares',
           },
         ]}
       />

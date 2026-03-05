@@ -106,10 +106,27 @@ a {
   white-space: nowrap;
 }
 
+.brand-block {
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .brand-block h1 {
   font-size: 1.72rem;
   letter-spacing: -0.03em;
   margin-top: 0.2rem;
+}
+
+.sidebar-logo {
+  width: 10rem;
+  height: auto;
+  display: block;
+  margin: 0 auto 0.55rem;
+  object-fit: contain;
 }
 
 .brand-overline {
@@ -295,6 +312,11 @@ a {
 .app-shell-sidebar-collapsed .ghost-button-label,
 .app-shell-sidebar-collapsed .sidebar-toggle-label {
   display: none;
+}
+
+.app-shell-sidebar-collapsed .sidebar-logo {
+  width: 42px;
+  margin: 0 auto 0.45rem;
 }
 
 .app-shell-sidebar-collapsed .sidebar-nav {
@@ -890,6 +912,22 @@ button.danger:hover {
   gap: 0.35rem;
   font-size: 0.88rem;
   color: var(--muted);
+}
+
+.form-group-title {
+  margin: 0.25rem 0 0.1rem;
+  padding-top: 0.35rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #3a5278;
+}
+
+.required-indicator {
+  margin-left: 0.2rem;
+  color: #bd2f2f;
+  font-weight: 700;
 }
 
 .stack-form input,
