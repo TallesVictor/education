@@ -42,6 +42,7 @@ const bulkDefaults = {
 export function EnrollmentsPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
@@ -106,6 +107,7 @@ export function EnrollmentsPage() {
       await api.post('/enrollments', payload)
     },
     onSuccess: async () => {
+      setIsFormModalOpen(false)
       individualForm.reset(individualDefaults)
       setStatusMessage('Matrícula individual criada com sucesso.')
       toast.success('Matrícula individual criada com sucesso.')
@@ -122,6 +124,7 @@ export function EnrollmentsPage() {
       await api.post('/enrollments/bulk', payload)
     },
     onSuccess: async () => {
+      setIsFormModalOpen(false)
       bulkForm.reset(bulkDefaults)
       setSelectedStudentIds([])
       setStatusMessage('Matrículas em lote processadas com sucesso.')
@@ -255,6 +258,13 @@ export function EnrollmentsPage() {
           <p>{enrollmentsQuery.data?.meta?.total ?? 0} vínculos ativos</p>
         </div>
 
+        <div className="actions-row module-toolbar-actions">
+          <button type="button" onClick={() => setIsFormModalOpen(true)}>
+            <Icon name="add" size={14} />
+            Cadastrar matrícula
+          </button>
+        </div>
+
         <AttributeSearchFilter
           definitions={enrollmentFilterDefinitions}
           activeFilters={activeFilters}
@@ -307,168 +317,187 @@ export function EnrollmentsPage() {
         />
       </section>
 
-      <div className="module-grid">
-        <section className="module-card">
-          <div className="section-title-row">
-            <h3>Vínculo Individual</h3>
-            <p>Aluno + Turma + Disciplina</p>
-          </div>
-
-          <form className="stack-form" onSubmit={submitIndividual}>
-            <label>
-              <span>Aluno *</span>
-              <select {...individualForm.register('user_external_id')}>
-                <option value="">Selecione</option>
-                {(studentsQuery.data ?? []).map((student) => (
-                  <option key={student.external_id} value={student.external_id}>
-                    {student.display_name} ({student.email})
-                  </option>
-                ))}
-              </select>
-              {individualForm.formState.errors.user_external_id && (
-                <small className="error-text">
-                  {individualForm.formState.errors.user_external_id.message}
-                </small>
-              )}
-            </label>
-
-            <label>
-              <span>Turma *</span>
-              <select {...individualForm.register('class_external_id')}>
-                <option value="">Selecione</option>
-                {(classesQuery.data ?? []).map((schoolClass) => (
-                  <option key={schoolClass.external_id} value={schoolClass.external_id}>
-                    {schoolClass.name}
-                  </option>
-                ))}
-              </select>
-              {individualForm.formState.errors.class_external_id && (
-                <small className="error-text">
-                  {individualForm.formState.errors.class_external_id.message}
-                </small>
-              )}
-            </label>
-
-            <label>
-              <span>Disciplina *</span>
-              <select {...individualForm.register('subject_external_id')}>
-                <option value="">Selecione</option>
-                {(subjectsQuery.data ?? []).map((subject) => (
-                  <option key={subject.external_id} value={subject.external_id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-              {individualForm.formState.errors.subject_external_id && (
-                <small className="error-text">
-                  {individualForm.formState.errors.subject_external_id.message}
-                </small>
-              )}
-            </label>
-
-            <label>
-              <span>Início</span>
-              <input type="date" {...individualForm.register('start_date')} />
-            </label>
-
-            <label>
-              <span>Fim</span>
-              <input type="date" {...individualForm.register('end_date')} />
-            </label>
-
-            <button type="submit" disabled={saveEnrollmentMutation.isPending}>
-              <Icon name="save" size={14} />
-              {saveEnrollmentMutation.isPending ? 'Salvando...' : 'Salvar vínculo'}
-            </button>
-          </form>
-        </section>
-
-        <section className="module-card">
-          <div className="section-title-row">
-            <h3>Vínculo em Lote</h3>
-            <p>Busca + seleção múltipla</p>
-          </div>
-
-          <form className="stack-form" onSubmit={submitBulk}>
-            <label>
-              <span>Turma *</span>
-              <select {...bulkForm.register('class_external_id')}>
-                <option value="">Selecione</option>
-                {(classesQuery.data ?? []).map((schoolClass) => (
-                  <option key={schoolClass.external_id} value={schoolClass.external_id}>
-                    {schoolClass.name}
-                  </option>
-                ))}
-              </select>
-              {bulkForm.formState.errors.class_external_id && (
-                <small className="error-text">{bulkForm.formState.errors.class_external_id.message}</small>
-              )}
-            </label>
-
-            <label>
-              <span>Disciplina *</span>
-              <select {...bulkForm.register('subject_external_id')}>
-                <option value="">Selecione</option>
-                {(subjectsQuery.data ?? []).map((subject) => (
-                  <option key={subject.external_id} value={subject.external_id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-              {bulkForm.formState.errors.subject_external_id && (
-                <small className="error-text">{bulkForm.formState.errors.subject_external_id.message}</small>
-              )}
-            </label>
-
-            <label>
-              <span>Buscar aluno por nome/e-mail</span>
-              <input
-                type="text"
-                placeholder="Digite para filtrar"
-                value={studentSearch}
-                onChange={(event) => setStudentSearch(event.target.value)}
-              />
-            </label>
-
+      {isFormModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setIsFormModalOpen(false)}>
+          <section
+            className="module-card modal-card import-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Cadastro de matrículas"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="section-title-row">
-              <p>{selectedStudentIds.length} selecionados</p>
-              <button type="button" className="ghost-chip" onClick={toggleSelectAllVisibleStudents}>
-                <Icon name={areAllStudentsSelected ? 'close' : 'add'} size={14} />
-                {areAllStudentsSelected ? 'Desmarcar visíveis' : 'Selecionar visíveis'}
+              <h3>Cadastro de Matrículas</h3>
+              <button type="button" className="ghost-chip" onClick={() => setIsFormModalOpen(false)}>
+                Fechar
               </button>
             </div>
 
-            <div className="checklist-box">
-              {students.map((student) => (
-                <label key={student.external_id} className="checkbox-line">
-                  <input
-                    type="checkbox"
-                    checked={selectedStudentIds.includes(student.external_id)}
-                    onChange={() => toggleStudent(student.external_id)}
-                  />
-                  <span>{student.display_name}</span>
-                  <code>{student.email}</code>
-                </label>
-              ))}
+            <div className="module-grid">
+              <section className="module-card">
+                <div className="section-title-row">
+                  <h3>Vínculo Individual</h3>
+                  <p>Aluno + Turma + Disciplina</p>
+                </div>
+
+                <form className="stack-form" onSubmit={submitIndividual}>
+                  <label>
+                    <span>Aluno *</span>
+                    <select {...individualForm.register('user_external_id')}>
+                      <option value="">Selecione</option>
+                      {(studentsQuery.data ?? []).map((student) => (
+                        <option key={student.external_id} value={student.external_id}>
+                          {student.display_name} ({student.email})
+                        </option>
+                      ))}
+                    </select>
+                    {individualForm.formState.errors.user_external_id && (
+                      <small className="error-text">
+                        {individualForm.formState.errors.user_external_id.message}
+                      </small>
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Turma *</span>
+                    <select {...individualForm.register('class_external_id')}>
+                      <option value="">Selecione</option>
+                      {(classesQuery.data ?? []).map((schoolClass) => (
+                        <option key={schoolClass.external_id} value={schoolClass.external_id}>
+                          {schoolClass.name}
+                        </option>
+                      ))}
+                    </select>
+                    {individualForm.formState.errors.class_external_id && (
+                      <small className="error-text">
+                        {individualForm.formState.errors.class_external_id.message}
+                      </small>
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Disciplina *</span>
+                    <select {...individualForm.register('subject_external_id')}>
+                      <option value="">Selecione</option>
+                      {(subjectsQuery.data ?? []).map((subject) => (
+                        <option key={subject.external_id} value={subject.external_id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                    {individualForm.formState.errors.subject_external_id && (
+                      <small className="error-text">
+                        {individualForm.formState.errors.subject_external_id.message}
+                      </small>
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Início</span>
+                    <input type="date" {...individualForm.register('start_date')} />
+                  </label>
+
+                  <label>
+                    <span>Fim</span>
+                    <input type="date" {...individualForm.register('end_date')} />
+                  </label>
+
+                  <button type="submit" disabled={saveEnrollmentMutation.isPending}>
+                    <Icon name="save" size={14} />
+                    {saveEnrollmentMutation.isPending ? 'Salvando...' : 'Salvar vínculo'}
+                  </button>
+                </form>
+              </section>
+
+              <section className="module-card">
+                <div className="section-title-row">
+                  <h3>Vínculo em Lote</h3>
+                  <p>Busca + seleção múltipla</p>
+                </div>
+
+                <form className="stack-form" onSubmit={submitBulk}>
+                  <label>
+                    <span>Turma *</span>
+                    <select {...bulkForm.register('class_external_id')}>
+                      <option value="">Selecione</option>
+                      {(classesQuery.data ?? []).map((schoolClass) => (
+                        <option key={schoolClass.external_id} value={schoolClass.external_id}>
+                          {schoolClass.name}
+                        </option>
+                      ))}
+                    </select>
+                    {bulkForm.formState.errors.class_external_id && (
+                      <small className="error-text">{bulkForm.formState.errors.class_external_id.message}</small>
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Disciplina *</span>
+                    <select {...bulkForm.register('subject_external_id')}>
+                      <option value="">Selecione</option>
+                      {(subjectsQuery.data ?? []).map((subject) => (
+                        <option key={subject.external_id} value={subject.external_id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                    {bulkForm.formState.errors.subject_external_id && (
+                      <small className="error-text">{bulkForm.formState.errors.subject_external_id.message}</small>
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Buscar aluno por nome/e-mail</span>
+                    <input
+                      type="text"
+                      placeholder="Digite para filtrar"
+                      value={studentSearch}
+                      onChange={(event) => setStudentSearch(event.target.value)}
+                    />
+                  </label>
+
+                  <div className="section-title-row">
+                    <p>{selectedStudentIds.length} selecionados</p>
+                    <button type="button" className="ghost-chip" onClick={toggleSelectAllVisibleStudents}>
+                      <Icon name={areAllStudentsSelected ? 'close' : 'add'} size={14} />
+                      {areAllStudentsSelected ? 'Desmarcar visíveis' : 'Selecionar visíveis'}
+                    </button>
+                  </div>
+
+                  <div className="checklist-box">
+                    {students.map((student) => (
+                      <label key={student.external_id} className="checkbox-line">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentIds.includes(student.external_id)}
+                          onChange={() => toggleStudent(student.external_id)}
+                        />
+                        <span>{student.display_name}</span>
+                        <code>{student.email}</code>
+                      </label>
+                    ))}
+                  </div>
+
+                  <label>
+                    <span>Início</span>
+                    <input type="date" {...bulkForm.register('start_date')} />
+                  </label>
+
+                  <label>
+                    <span>Fim</span>
+                    <input type="date" {...bulkForm.register('end_date')} />
+                  </label>
+
+                  <button type="submit" disabled={bulkEnrollmentMutation.isPending}>
+                    <Icon name="save" size={14} />
+                    {bulkEnrollmentMutation.isPending ? 'Processando...' : 'Confirmar lote'}
+                  </button>
+                </form>
+              </section>
             </div>
-
-            <label>
-              <span>Início</span>
-              <input type="date" {...bulkForm.register('start_date')} />
-            </label>
-
-            <label>
-              <span>Fim</span>
-              <input type="date" {...bulkForm.register('end_date')} />
-            </label>
-
-            <button type="submit" disabled={bulkEnrollmentMutation.isPending}>
-              <Icon name="save" size={14} />
-              {bulkEnrollmentMutation.isPending ? 'Processando...' : 'Confirmar lote'}
-            </button>
-          </form>
-        </section>
-      </div>
+          </section>
+        </div>
+      )}
 
       {statusMessage && <p className="status-text">{statusMessage}</p>}
     </div>

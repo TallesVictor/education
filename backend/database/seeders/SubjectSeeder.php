@@ -26,7 +26,7 @@ class SubjectSeeder extends Seeder
         for ($index = 1; $index <= self::TARGET_COUNT; $index++) {
             $schoolId = $schoolIds[($index - 1) % $schoolCount];
 
-            Subject::query()->withTrashed()->updateOrCreate(
+            $subject = Subject::query()->withTrashed()->updateOrCreate(
                 [
                     'school_id' => $schoolId,
                     'name' => sprintf('Disciplina %03d', $index),
@@ -37,6 +37,8 @@ class SubjectSeeder extends Seeder
                     'deleted_at' => null,
                 ],
             );
+
+            $subject->schools()->syncWithoutDetaching([$schoolId]);
         }
     }
 }

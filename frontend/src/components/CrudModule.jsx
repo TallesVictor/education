@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
@@ -7,6 +7,7 @@ import { PaginationControls } from './PaginationControls'
 import { useToast } from '../hooks/useToast'
 import { AttributeSearchFilter } from './AttributeSearchFilter'
 import { Icon } from './Icon'
+import { MultiSelectField } from './MultiSelectField'
 
 const PAGE_SIZE = 15
 
@@ -319,13 +320,24 @@ export function CrudModule({
                 )}
 
                 {field.type === 'multiselect' && (
-                  <select multiple {...form.register(field.name)}>
-                    {field.options?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Controller
+                    name={field.name}
+                    control={form.control}
+                    render={({ field: controlledField, fieldState }) => (
+                      <>
+                        <MultiSelectField
+                          options={field.options ?? []}
+                          value={controlledField.value}
+                          onChange={controlledField.onChange}
+                          placeholder={field.placeholder || 'Selecione uma ou mais opcoes'}
+                          searchPlaceholder={field.searchPlaceholder || 'Filtrar opcoes...'}
+                        />
+                        {fieldState.error && (
+                          <small className="error-text">{fieldState.error.message}</small>
+                        )}
+                      </>
+                    )}
+                  />
                 )}
 
                 {!['textarea', 'select', 'multiselect'].includes(field.type) && (
@@ -336,7 +348,7 @@ export function CrudModule({
                   />
                 )}
 
-                {form.formState.errors[field.name] && (
+                {field.type !== 'multiselect' && form.formState.errors[field.name] && (
                   <small className="error-text">
                     {form.formState.errors[field.name]?.message}
                   </small>
@@ -393,13 +405,24 @@ export function CrudModule({
                   )}
 
                   {field.type === 'multiselect' && (
-                    <select multiple {...form.register(field.name)}>
-                      {field.options?.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <Controller
+                      name={field.name}
+                      control={form.control}
+                      render={({ field: controlledField, fieldState }) => (
+                        <>
+                          <MultiSelectField
+                            options={field.options ?? []}
+                            value={controlledField.value}
+                            onChange={controlledField.onChange}
+                            placeholder={field.placeholder || 'Selecione uma ou mais opcoes'}
+                            searchPlaceholder={field.searchPlaceholder || 'Filtrar opcoes...'}
+                          />
+                          {fieldState.error && (
+                            <small className="error-text">{fieldState.error.message}</small>
+                          )}
+                        </>
+                      )}
+                    />
                   )}
 
                   {!['textarea', 'select', 'multiselect'].includes(field.type) && (
@@ -410,7 +433,7 @@ export function CrudModule({
                     />
                   )}
 
-                  {form.formState.errors[field.name] && (
+                  {field.type !== 'multiselect' && form.formState.errors[field.name] && (
                     <small className="error-text">
                       {form.formState.errors[field.name]?.message}
                     </small>

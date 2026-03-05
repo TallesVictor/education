@@ -59,6 +59,17 @@ class CheckPermission
             : sprintf('%s.manage', $module);
 
         if (!in_array($requiredPermission, $permissions, true)) {
+            if (
+                $requiredPermission === 'materials.view'
+                && UserSchoolRole::query()
+                    ->where('user_id', $user->id)
+                    ->where('school_id', $tenantId)
+                    ->whereHas('role', fn ($query) => $query->where('name', 'Aluno'))
+                    ->exists()
+            ) {
+                return $next($request);
+            }
+
             abort(403, 'Você não tem permissão para acessar este recurso.');
         }
 

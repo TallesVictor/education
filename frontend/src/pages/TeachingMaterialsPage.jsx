@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Fragment, useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
+import { AttributeSearchFilter } from '../components/AttributeSearchFilter'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuth'
 import { Icon } from '../components/Icon'
+import { MultiSelectField } from '../components/MultiSelectField'
 
 const schema = z.object({
   school_external_id: z.string().optional(),
@@ -73,7 +76,22 @@ function toLocalDateTimeInput(value) {
   return localDate.toISOString().slice(0, 16)
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '-'
+  }
+
+  return date.toLocaleString('pt-BR')
+}
+
 export function TeachingMaterialsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const toast = useToast()
   const { user } = useAuth()
@@ -83,15 +101,11 @@ export function TeachingMaterialsPage() {
   const [previewMaterial, setPreviewMaterial] = useState(null)
   const [statusMessage, setStatusMessage] = useState('')
   const [page, setPage] = useState(1)
-  const [filters, setFilters] = useState({
-    title: '',
-    subject_external_id: '',
-    class_external_id: '',
-    extension: '',
-    visibility: '',
-  })
+  const [activeFilters, setActiveFilters] = useState([])
+  const [expandedMaterialExternalId, setExpandedMaterialExternalId] = useState(null)
 
   const canManageMaterials = user?.role_name?.toLowerCase() !== 'aluno'
+  const isStudent = !canManageMaterials
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -100,6 +114,7 @@ export function TeachingMaterialsPage() {
 
   const schoolsQuery = useQuery({
     queryKey: ['schools-materials-form'],
+    enabled: canManageMaterials,
     queryFn: async () => {
       const { data } = await api.get('/schools', { params: { per_page: 200 } })
       return data.data
@@ -117,6 +132,7 @@ export function TeachingMaterialsPage() {
 
   const subjectsQuery = useQuery({
     queryKey: ['subjects-materials-form'],
+    enabled: canManageMaterials,
     queryFn: async () => {
       const { data } = await api.get('/subjects', { params: { per_page: 200 } })
       return data.data
@@ -134,6 +150,7 @@ export function TeachingMaterialsPage() {
 
   const classesQuery = useQuery({
     queryKey: ['classes-materials-form'],
+    enabled: canManageMaterials,
     queryFn: async () => {
       const { data } = await api.get('/classes', { params: { per_page: 200 } })
       return data.data
@@ -149,32 +166,63 @@ export function TeachingMaterialsPage() {
     [classesQuery.data],
   )
 
+  const materialFilterDefinitions = useMemo(
+    () => [
+      {
+        key: 'title',
+        label: 'Título',
+        aliases: ['titulo', 'title'],
+        type: 'text',
+        theme: 'name',
+      },
+      {
+        key: 'subject_external_id',
+        label: 'Disciplina',
+        aliases: ['disciplina', 'subject'],
+        type: 'select',
+        theme: 'description',
+        keepAttributeInInput: true,
+        options: subjectOptions,
+      },
+      {
+        key: 'class_external_id',
+        label: 'Turma',
+        aliases: ['turma', 'class'],
+        type: 'select',
+        theme: 'class',
+        keepAttributeInInput: true,
+        options: classOptions,
+      },
+      {
+        key: 'file_extension',
+        label: 'Formato',
+        aliases: ['formato', 'extensao', 'extension'],
+        type: 'select',
+        theme: 'school',
+        options: extensionOptions.filter((option) => option.value),
+      },
+      {
+        key: 'is_visible_to_students',
+        label: 'Visibilidade',
+        aliases: ['visibilidade', 'visibility'],
+        type: 'select',
+        theme: 'school',
+        options: [
+          { value: '1', label: 'Visível para alunos' },
+          { value: '0', label: 'Somente equipe' },
+        ],
+      },
+    ],
+    [classOptions, subjectOptions],
+  )
+
   const materialsQuery = useQuery({
-    queryKey: ['materials', page, filters],
+    queryKey: ['materials', page, activeFilters],
     queryFn: async () => {
       const params = {
         page,
         per_page: 15,
-      }
-
-      if (filters.title) {
-        params.filter_title = filters.title
-      }
-
-      if (filters.subject_external_id) {
-        params.filter_subject_external_id = filters.subject_external_id
-      }
-
-      if (filters.class_external_id) {
-        params.filter_class_external_id = filters.class_external_id
-      }
-
-      if (filters.extension) {
-        params.filter_file_extension = filters.extension
-      }
-
-      if (filters.visibility) {
-        params.filter_is_visible_to_students = filters.visibility
+        ...buildMaterialFilterParams(activeFilters),
       }
 
       const { data } = await api.get('/materials', { params })
@@ -294,23 +342,15 @@ export function TeachingMaterialsPage() {
     setIsFormModalOpen(false)
   }
 
-  function setFilterValue(name, value) {
-    setPage(1)
-    setFilters((current) => ({
-      ...current,
-      [name]: value,
-    }))
-  }
+  function onMaterialRowClick(material) {
+    if (isStudent) {
+      navigate(`/materials/${material.external_id}`)
+      return
+    }
 
-  function clearFilters() {
-    setPage(1)
-    setFilters({
-      title: '',
-      subject_external_id: '',
-      class_external_id: '',
-      extension: '',
-      visibility: '',
-    })
+    setExpandedMaterialExternalId((current) => (
+      current === material.external_id ? null : material.external_id
+    ))
   }
 
   return (
@@ -330,80 +370,15 @@ export function TeachingMaterialsPage() {
           </div>
         )}
 
-        <div className="filters-row material-filters">
-          <label>
-            <span>Título</span>
-            <input
-              type="text"
-              value={filters.title}
-              placeholder="Ex.: Álgebra linear"
-              onChange={(event) => setFilterValue('title', event.target.value)}
-            />
-          </label>
-
-          <label>
-            <span>Disciplina</span>
-            <select
-              value={filters.subject_external_id}
-              onChange={(event) => setFilterValue('subject_external_id', event.target.value)}
-            >
-              <option value="">Todas</option>
-              {subjectOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Turma</span>
-            <select
-              value={filters.class_external_id}
-              onChange={(event) => setFilterValue('class_external_id', event.target.value)}
-            >
-              <option value="">Todas</option>
-              {classOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Formato</span>
-            <select
-              value={filters.extension}
-              onChange={(event) => setFilterValue('extension', event.target.value)}
-            >
-              {extensionOptions.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Visibilidade</span>
-            <select
-              value={filters.visibility}
-              onChange={(event) => setFilterValue('visibility', event.target.value)}
-            >
-              <option value="">Todos</option>
-              <option value="1">Visível para alunos</option>
-              <option value="0">Somente equipe</option>
-            </select>
-          </label>
-
-          <div className="actions-row">
-            <button type="button" className="ghost-chip" onClick={clearFilters}>
-              <Icon name="close" size={14} />
-              Limpar filtros
-            </button>
-          </div>
-        </div>
+        <AttributeSearchFilter
+          definitions={materialFilterDefinitions}
+          activeFilters={activeFilters}
+          onChange={(nextFilters) => {
+            setPage(1)
+            setActiveFilters(nextFilters)
+          }}
+          placeholder="Filtrar materiais... ex.: título:álgebra"
+        />
 
         {materialsQuery.isLoading && <p>Carregando materiais...</p>}
 
@@ -421,67 +396,121 @@ export function TeachingMaterialsPage() {
               </tr>
             </thead>
             <tbody>
-              {(materialsQuery.data?.data ?? []).map((material) => (
-                <tr key={material.external_id}>
-                  <td>{material.title}</td>
-                  <td>
-                    <div className="material-file-meta">
-                      <strong>{material.file_original_name}</strong>
-                      <span>
-                        {(material.file_extension || '-').toUpperCase()} . {formatFileSize(material.file_size)}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="material-subject-chip-row">
-                      {(material.subjects ?? []).length > 0
-                        ? material.subjects.map((subject) => (
-                          <span key={subject.external_id} className="pill-badge">
-                            {subject.name}
+              {(materialsQuery.data?.data ?? []).map((material) => {
+                const isExpanded = expandedMaterialExternalId === material.external_id
+
+                return (
+                  <Fragment key={material.external_id}>
+                    <tr
+                      className="row-clickable"
+                      onClick={() => onMaterialRowClick(material)}
+                      aria-expanded={!isStudent && isExpanded}
+                    >
+                      <td>{material.title}</td>
+                      <td>
+                        <div className="material-file-meta">
+                          <strong>{material.file_original_name}</strong>
+                          <span>
+                            {(material.file_extension || '-').toUpperCase()} . {formatFileSize(material.file_size)}
                           </span>
-                        ))
-                        : <span className="muted-inline">Sem disciplina</span>}
-                    </div>
-                  </td>
-                  <td>{material.class_name || '-'}</td>
-                  <td>
-                    {material.published_at
-                      ? new Date(material.published_at).toLocaleDateString('pt-BR')
-                      : '-'}
-                  </td>
-                  <td>
-                    <span className={`material-visibility ${material.is_visible_to_students ? 'is-visible' : 'is-private'}`}>
-                      {material.is_visible_to_students ? 'Aluno e equipe' : 'Somente equipe'}
-                    </span>
-                  </td>
-                  <td className="actions-cell">
-                    <button type="button" onClick={() => setPreviewMaterial(material)}>
-                      <Icon name="preview" size={14} />
-                      Visualizar
-                    </button>
-                    <a href={material.file_url} target="_blank" rel="noreferrer" className="ghost-link button-link">
-                      <Icon name="download" size={14} />
-                      Baixar
-                    </a>
-                    {canManageMaterials && (
-                      <>
-                        <button type="button" onClick={() => onEdit(material)}>
-                          <Icon name="edit" size={14} />
-                          Editar
+                        </div>
+                      </td>
+                      <td>
+                        <div className="material-subject-chip-row">
+                          {(material.subjects ?? []).length > 0
+                            ? material.subjects.map((subject) => (
+                              <span key={subject.external_id} className="pill-badge">
+                                {subject.name}
+                              </span>
+                            ))
+                            : <span className="muted-inline">Sem disciplina</span>}
+                        </div>
+                      </td>
+                      <td>{material.class_name || '-'}</td>
+                      <td>
+                        {material.published_at
+                          ? new Date(material.published_at).toLocaleDateString('pt-BR')
+                          : '-'}
+                      </td>
+                      <td>
+                        <span className={`material-visibility ${material.is_visible_to_students ? 'is-visible' : 'is-private'}`}>
+                          {material.is_visible_to_students ? 'Aluno e equipe' : 'Somente equipe'}
+                        </span>
+                      </td>
+                      <td className="actions-cell" onClick={(event) => event.stopPropagation()}>
+                        <button type="button" onClick={() => navigate(`/materials/${material.external_id}`)}>
+                          <Icon name="preview" size={14} />
+                          Visualizar
                         </button>
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={() => deleteMutation.mutate(material.external_id)}
-                        >
-                          <Icon name="delete" size={14} />
-                          Excluir
-                        </button>
-                      </>
+                        <a href={material.file_url} target="_blank" rel="noreferrer" className="ghost-link button-link">
+                          <Icon name="download" size={14} />
+                          Baixar
+                        </a>
+                        {canManageMaterials && (
+                          <>
+                            <button type="button" onClick={() => onEdit(material)}>
+                              <Icon name="edit" size={14} />
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              className="danger"
+                              onClick={() => deleteMutation.mutate(material.external_id)}
+                            >
+                              <Icon name="delete" size={14} />
+                              Excluir
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+
+                    {!isStudent && isExpanded && (
+                      <tr className="material-expanded-row">
+                        <td colSpan={7}>
+                          <div className="material-expanded-panel">
+                            <div className="material-expanded-grid">
+                              <p>
+                                <strong>Anexo:</strong> {material.file_original_name}
+                              </p>
+                              <p>
+                                <strong>Formato:</strong> {(material.file_extension || '-').toUpperCase()}
+                              </p>
+                              <p>
+                                <strong>Tamanho:</strong> {formatFileSize(material.file_size)}
+                              </p>
+                              <p>
+                                <strong>Versão:</strong> {material.version || '-'}
+                              </p>
+                              <p>
+                                <strong>Publicação:</strong> {formatDateTime(material.published_at)}
+                              </p>
+                              <p>
+                                <strong>Cadastro:</strong> {formatDateTime(material.created_at)}
+                              </p>
+                            </div>
+
+                            <p className="material-expanded-description">
+                              {material.description || 'Sem descrição disponível para este material.'}
+                            </p>
+
+                            <div className="actions-row">
+                              <button type="button" onClick={() => setPreviewMaterial(material)}>
+                                <Icon name="preview" size={14} />
+                                Visualizar material
+                              </button>
+                              <a href={material.file_url} target="_blank" rel="noreferrer" className="button-link">
+                                <Icon name="download" size={14} />
+                                Baixar anexo
+                              </a>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                </tr>
-              ))}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -535,13 +564,19 @@ export function TeachingMaterialsPage() {
 
               <label>
                 <span>Disciplinas (vínculo 1:N)</span>
-                <select multiple {...form.register('subject_external_ids')}>
-                  {subjectOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  name="subject_external_ids"
+                  control={form.control}
+                  render={({ field }) => (
+                    <MultiSelectField
+                      options={subjectOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Selecione uma ou mais disciplinas"
+                      searchPlaceholder="Filtrar disciplinas..."
+                    />
+                  )}
+                />
               </label>
 
               <label>
@@ -657,4 +692,24 @@ export function TeachingMaterialsPage() {
       )}
     </div>
   )
+}
+
+function buildMaterialFilterParams(activeFilters) {
+  const params = {}
+
+  for (const filter of activeFilters) {
+    const key = `filter_${filter.attribute}`
+    const currentValue = params[key]
+
+    if (currentValue === undefined) {
+      params[key] = filter.value
+      continue
+    }
+
+    params[key] = Array.isArray(currentValue)
+      ? [...currentValue, filter.value]
+      : [currentValue, filter.value]
+  }
+
+  return params
 }

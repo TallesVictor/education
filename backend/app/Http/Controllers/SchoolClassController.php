@@ -97,10 +97,10 @@ class SchoolClassController extends Controller
             ]);
 
             if ($request->has('subject_external_ids')) {
-                $subjectIds = Subject::query()
-                    ->whereIn('external_id', $request->input('subject_external_ids'))
-                    ->pluck('id')
-                    ->all();
+                $subjectIds = $this->resolveSubjectIdsForSchool(
+                    subjectExternalIds: $request->input('subject_external_ids', []),
+                    schoolId: $schoolId,
+                );
 
                 $class->subjects()->sync($subjectIds);
             }
@@ -142,10 +142,10 @@ class SchoolClassController extends Controller
             $class->update($request->only(['name', 'year']));
 
             if ($request->has('subject_external_ids')) {
-                $subjectIds = Subject::query()
-                    ->whereIn('external_id', $request->input('subject_external_ids'))
-                    ->pluck('id')
-                    ->all();
+                $subjectIds = $this->resolveSubjectIdsForSchool(
+                    subjectExternalIds: $request->input('subject_external_ids', []),
+                    schoolId: (int) $class->school_id,
+                );
 
                 $class->subjects()->sync($subjectIds);
             }
@@ -176,10 +176,10 @@ class SchoolClassController extends Controller
     {
         $class = SchoolClass::query()->where('external_id', $externalId)->firstOrFail();
 
-        $subjectIds = Subject::query()
-            ->whereIn('external_id', $request->input('subject_external_ids'))
-            ->pluck('id')
-            ->all();
+        $subjectIds = $this->resolveSubjectIdsForSchool(
+            subjectExternalIds: $request->input('subject_external_ids', []),
+            schoolId: (int) $class->school_id,
+        );
 
         $class->subjects()->syncWithoutDetaching($subjectIds);
         TenantCache::flushClassesCache();
@@ -194,7 +194,10 @@ class SchoolClassController extends Controller
     {
         $class = SchoolClass::query()->where('external_id', $externalId)->firstOrFail();
 
-        $subjectId = Subject::query()->where('external_id', $subjectExternalId)->value('id');
+        $subjectId = Subject::query()
+            ->where('external_id', $subjectExternalId)
+            ->whereHas('schools', fn ($query) => $query->where('schools.id', (int) $class->school_id))
+            ->value('id');
 
         if ($subjectId) {
             $class->subjects()->detach($subjectId);
@@ -250,6 +253,19 @@ class SchoolClassController extends Controller
             ->map(fn ($value) => trim((string) $value))
             ->filter(fn (string $value) => $value !== '')
             ->values()
+            ->all();
+    }
+
+    private function resolveSubjectIdsForSchool(mixed $subjectExternalIds, int $schoolId): array
+    {
+        if (!is_array($subjectExternalIds) || empty($subjectExternalIds)) {
+            return [];
+        }
+
+        return Subject::query()
+            ->whereIn('external_id', $subjectExternalIds)
+            ->whereHas('schools', fn ($query) => $query->where('schools.id', $schoolId))
+            ->pluck('id')
             ->all();
     }
 }

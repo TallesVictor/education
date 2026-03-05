@@ -94,7 +94,8 @@ class EnrollmentController extends Controller
         $class = SchoolClass::query()->where('external_id', $request->string('class_external_id'))->firstOrFail();
         $subject = Subject::query()->where('external_id', $request->string('subject_external_id'))->firstOrFail();
 
-        abort_if($class->school_id !== $subject->school_id, 422, 'Turma e disciplina devem pertencer à mesma escola.');
+        $isSubjectAttachedToClass = $class->subjects()->where('subjects.id', $subject->id)->exists();
+        abort_if(!$isSubjectAttachedToClass, 422, 'A disciplina precisa estar vinculada à turma informada.');
 
         if (!$request->user()->isAdmin()) {
             $tenantId = app()->bound('tenant')
@@ -102,7 +103,7 @@ class EnrollmentController extends Controller
                 : $request->user()->school_id;
 
             abort_if($class->school_id !== $tenantId, 403, 'Turma não pertence ao tenant ativo.');
-            abort_if($subject->school_id !== $tenantId, 403, 'Disciplina não pertence ao tenant ativo.');
+            abort_if(!$subject->schools()->where('schools.id', $tenantId)->exists(), 403, 'Disciplina não pertence ao tenant ativo.');
         }
 
         $students = User::query()
@@ -163,6 +164,9 @@ class EnrollmentController extends Controller
         $class = SchoolClass::query()->where('external_id', $classExternalId)->firstOrFail();
         $subject = Subject::query()->where('external_id', $subjectExternalId)->firstOrFail();
 
+        $isSubjectAttachedToClass = $class->subjects()->where('subjects.id', $subject->id)->exists();
+        abort_if(!$isSubjectAttachedToClass, 422, 'A disciplina precisa estar vinculada à turma informada.');
+
         if (!$request->user()->isAdmin()) {
             $tenantId = app()->bound('tenant')
                 ? app('tenant')
@@ -170,7 +174,7 @@ class EnrollmentController extends Controller
 
             abort_if($user->school_id !== $tenantId, 403, 'Usuário não pertence ao tenant ativo.');
             abort_if($class->school_id !== $tenantId, 403, 'Turma não pertence ao tenant ativo.');
-            abort_if($subject->school_id !== $tenantId, 403, 'Disciplina não pertence ao tenant ativo.');
+            abort_if(!$subject->schools()->where('schools.id', $tenantId)->exists(), 403, 'Disciplina não pertence ao tenant ativo.');
         }
 
         return [$user, $class, $subject];
@@ -187,7 +191,7 @@ class EnrollmentController extends Controller
         $query
             ->whereHas('user', fn ($q) => $q->where('school_id', $tenantId))
             ->whereHas('schoolClass', fn ($q) => $q->where('school_id', $tenantId))
-            ->whereHas('subject', fn ($q) => $q->where('school_id', $tenantId));
+            ->whereHas('subject.schools', fn ($q) => $q->where('schools.id', $tenantId));
     }
 
     private function normalizeFilterValues(mixed $rawValues): array

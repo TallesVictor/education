@@ -280,7 +280,7 @@ class TeachingMaterialController extends Controller
         $query = Subject::query()->whereIn('external_id', $subjectExternalIds);
 
         if (!empty($schoolId)) {
-            $query->where('school_id', $schoolId);
+            $query->whereHas('schools', fn ($schoolQuery) => $schoolQuery->where('schools.id', $schoolId));
         }
 
         return $query->pluck('id')->all();

@@ -12,6 +12,7 @@ import { RolesPage } from './pages/RolesPage'
 import { PermissionsPage } from './pages/PermissionsPage'
 import { EnrollmentsPage } from './pages/EnrollmentsPage'
 import { TeachingMaterialsPage } from './pages/TeachingMaterialsPage'
+import { TeachingMaterialDetailsPage } from './pages/TeachingMaterialDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="schools" element={<SchoolsPage />} />
         <Route path="subjects" element={<SubjectsPage />} />
         <Route path="materials" element={<TeachingMaterialsPage />} />
+        <Route path="materials/:external_id" element={<TeachingMaterialDetailsPage />} />
         <Route path="classes" element={<ClassesPage />} />
         <Route path="classes/:external_id" element={<ClassDetailsPage />} />
         <Route path="roles" element={<RolesPage />} />

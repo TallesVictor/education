@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -8,16 +8,17 @@ import { PaginationControls } from '../components/PaginationControls'
 import { AttributeSearchFilter } from '../components/AttributeSearchFilter'
 import { useToast } from '../hooks/useToast'
 import { Icon } from '../components/Icon'
+import { MultiSelectField } from '../components/MultiSelectField'
 
 const schema = z.object({
-  school_external_id: z.string().optional(),
+  school_external_ids: z.array(z.string()).optional(),
   name: z.string().min(1, 'Nome é obrigatório.'),
   description: z.string().optional(),
   class_external_ids: z.array(z.string()).optional(),
 })
 
 const initialValues = {
-  school_external_id: '',
+  school_external_ids: [],
   name: '',
   description: '',
   class_external_ids: [],
@@ -72,6 +73,10 @@ export function SubjectsPage() {
     resolver: zodResolver(schema),
     defaultValues: initialValues,
   })
+  const selectedSchoolExternalIds = useWatch({
+    control: form.control,
+    name: 'school_external_ids',
+  })
 
   const schoolsQuery = useQuery({
     queryKey: ['schools-subject-form'],
@@ -98,7 +103,7 @@ export function SubjectsPage() {
     },
   })
 
-  const classOptions = useMemo(
+  const allClassOptions = useMemo(
     () =>
       (classesQuery.data ?? []).map((schoolClass) => ({
         value: schoolClass.external_id,
@@ -106,6 +111,37 @@ export function SubjectsPage() {
       })),
     [classesQuery.data],
   )
+
+  const classOptions = useMemo(() => {
+    const availableClasses = classesQuery.data ?? []
+    const selectedSchools = Array.isArray(selectedSchoolExternalIds) ? selectedSchoolExternalIds : []
+    const selectedSchoolsSet = new Set(selectedSchools)
+    const filteredClasses = selectedSchoolsSet.size > 0
+      ? availableClasses.filter((schoolClass) => selectedSchoolsSet.has(schoolClass.school_external_id))
+      : availableClasses
+
+    return filteredClasses.map((schoolClass) => ({
+      value: schoolClass.external_id,
+      label: `${schoolClass.name} (${schoolClass.year})`,
+    }))
+  }, [classesQuery.data, selectedSchoolExternalIds])
+
+  useEffect(() => {
+    const currentSelectedClassIds = form.getValues('class_external_ids') ?? []
+
+    if (!Array.isArray(currentSelectedClassIds) || currentSelectedClassIds.length === 0) {
+      return
+    }
+
+    const availableClassIds = new Set(classOptions.map((option) => option.value))
+    const sanitizedClassIds = currentSelectedClassIds.filter((classExternalId) =>
+      availableClassIds.has(classExternalId),
+    )
+
+    if (sanitizedClassIds.length !== currentSelectedClassIds.length) {
+      form.setValue('class_external_ids', sanitizedClassIds)
+    }
+  }, [classOptions, form])
 
   const subjectFilterOptions = useMemo(
     () =>
@@ -121,14 +157,14 @@ export function SubjectsPage() {
         if (filterDefinition.key === 'class_external_id') {
           return {
             ...filterDefinition,
-            options: classOptions,
+            options: allClassOptions,
             placeholder: 'Selecione uma ou mais turmas',
           }
         }
 
         return filterDefinition
       }),
-    [classOptions, schoolOptions],
+    [allClassOptions, schoolOptions],
   )
 
   const activeFilterParams = useMemo(() => {
@@ -181,10 +217,17 @@ export function SubjectsPage() {
       const formData = new FormData()
       formData.append('name', values.name)
       formData.append('description', values.description || '')
+      formData.append('sync_schools', '1')
       formData.append('sync_classes', '1')
 
-      if (values.school_external_id) {
-        formData.append('school_external_id', values.school_external_id)
+      const schoolExternalIds = Array.isArray(values.school_external_ids)
+        ? values.school_external_ids
+        : values.school_external_ids
+          ? [values.school_external_ids]
+          : []
+
+      for (const schoolExternalId of schoolExternalIds) {
+        formData.append('school_external_ids[]', schoolExternalId)
       }
 
       const classExternalIds = Array.isArray(values.class_external_ids)
@@ -218,9 +261,15 @@ export function SubjectsPage() {
       toast.success('Disciplina salva com sucesso.')
       await queryClient.invalidateQueries({ queryKey: ['subjects'] })
     },
-    onError: () => {
-      setStatusMessage('Não foi possível salvar a disciplina.')
-      toast.error('Não foi possível salvar a disciplina.')
+    onError: (error) => {
+      const validationErrors = error?.response?.data?.errors
+      const firstValidationMessage = validationErrors
+        ? Object.values(validationErrors).flat().find((message) => typeof message === 'string')
+        : null
+      const message =
+        firstValidationMessage || error?.response?.data?.message || 'Não foi possível salvar a disciplina.'
+      setStatusMessage(message)
+      toast.error(message)
     },
   })
 
@@ -255,7 +304,18 @@ export function SubjectsPage() {
   function onEdit(subject) {
     setEditing(subject)
     setIsFormModalOpen(true)
-    form.setValue('school_external_id', subject.school_external_id || '')
+    const subjectSchoolExternalIds = Array.isArray(subject.school_external_ids)
+      ? subject.school_external_ids
+      : Array.isArray(subject.schools) && subject.schools.length > 0
+        ? subject.schools.map((school) => school.external_id)
+        : subject.school_external_id
+          ? [subject.school_external_id]
+          : []
+
+    form.setValue(
+      'school_external_ids',
+      subjectSchoolExternalIds,
+    )
     form.setValue('name', subject.name || '')
     form.setValue('description', subject.description || '')
     form.setValue(
@@ -308,36 +368,61 @@ export function SubjectsPage() {
 
         {subjectsQuery.isLoading && <p>Carregando...</p>}
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Imagem</th>
-                <th>Nome</th>
-                <th>Descrição</th>
-                <th>Turmas</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(subjectsQuery.data?.data ?? []).map((subject) => (
-                <tr key={subject.external_id}>
-                  <td>
-                    {subject.image_url ? (
-                      <img src={subject.image_url} alt={subject.name} className="thumb" />
-                    ) : (
-                      <span className="muted-inline">Sem imagem</span>
-                    )}
-                  </td>
-                  <td>{subject.name}</td>
-                  <td>{subject.description || '-'}</td>
-                  <td>
-                    {(subject.classes ?? []).length > 0
-                      ? subject.classes.map((schoolClass) => schoolClass.name).join(', ')
-                      : '-'}
-                  </td>
-                  <td className="actions-cell">
-                    <button type="button" onClick={() => onEdit(subject)}>
+        {!subjectsQuery.isLoading && (subjectsQuery.data?.data ?? []).length === 0 && (
+          <div className="subjects-empty-state">
+            <span className="kpi-icon">
+              <Icon name="subject" size={16} />
+            </span>
+            <strong>Nenhuma disciplina encontrada</strong>
+            <p>Ajuste os filtros ou cadastre uma nova disciplina para começar.</p>
+          </div>
+        )}
+
+        <div className="subject-widget-grid">
+          {(subjectsQuery.data?.data ?? []).map((subject) => {
+            const classes = subject.classes ?? []
+            const classCount = subject.classes_count ?? classes.length
+            const visibleClasses = classes.slice(0, 3)
+            const remainingClasses = Math.max(0, classes.length - visibleClasses.length)
+
+            return (
+              <article key={subject.external_id} className="subject-widget-card">
+                <div className="subject-widget-media">
+                  {subject.image_url ? (
+                    <img src={subject.image_url} alt={subject.name} className="subject-widget-image" />
+                  ) : (
+                    <div className="subject-widget-image-fallback">
+                      <Icon name="subject" size={22} />
+                      <span>Sem imagem</span>
+                    </div>
+                  )}
+                  <span className="subject-widget-count">
+                    <Icon name="class" size={14} />
+                    {classCount} turma{classCount === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <div className="subject-widget-body">
+                  <div className="subject-widget-head">
+                    <h4>{subject.name}</h4>
+                  </div>
+
+                  <p className="subject-widget-description">
+                    {subject.description || 'Sem descrição cadastrada.'}
+                  </p>
+
+                  <div className="subject-widget-classes">
+                    {visibleClasses.map((schoolClass) => (
+                      <span key={schoolClass.external_id} className="pill-badge">
+                        {schoolClass.name}
+                      </span>
+                    ))}
+                    {remainingClasses > 0 && <span className="pill-badge">+{remainingClasses} turmas</span>}
+                    {classes.length === 0 && <span className="muted-inline">Sem turmas vinculadas</span>}
+                  </div>
+
+                  <div className="subject-widget-actions">
+                    <button type="button" className="ghost-chip" onClick={() => onEdit(subject)}>
                       <Icon name="edit" size={14} />
                       Editar
                     </button>
@@ -349,11 +434,11 @@ export function SubjectsPage() {
                       <Icon name="delete" size={14} />
                       Excluir
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
 
         <PaginationControls
@@ -392,26 +477,37 @@ export function SubjectsPage() {
               </label>
 
               <label>
-                <span>Escola</span>
-                <select {...form.register('school_external_id')}>
-                  <option value="">Selecione</option>
-                  {schoolOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <span>Escolas</span>
+                <Controller
+                  name="school_external_ids"
+                  control={form.control}
+                  render={({ field }) => (
+                    <MultiSelectField
+                      options={schoolOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Selecione uma ou mais escolas"
+                      searchPlaceholder="Filtrar escolas..."
+                    />
+                  )}
+                />
               </label>
 
               <label>
                 <span>Turmas</span>
-                <select multiple {...form.register('class_external_ids')}>
-                  {classOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  name="class_external_ids"
+                  control={form.control}
+                  render={({ field }) => (
+                    <MultiSelectField
+                      options={classOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Selecione uma ou mais turmas"
+                      searchPlaceholder="Filtrar turmas..."
+                    />
+                  )}
+                />
               </label>
 
               <label>
