@@ -17,6 +17,8 @@ class StoreSubjectRequest extends FormRequest
             'school_external_id' => ['nullable', 'string', 'size:21'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'class_external_ids' => ['nullable', 'array'],
+            'class_external_ids.*' => ['string', 'size:21'],
             'image' => [
                 'nullable',
                 'image',

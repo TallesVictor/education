@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchoolClassController;
 use App\Http\Controllers\SchoolController;
 use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\TeachingMaterialController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +64,17 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('/classes/{external_id}', [SchoolClassController::class, 'destroy']);
         Route::post('/classes/{external_id}/subjects', [SchoolClassController::class, 'attachSubjects']);
         Route::delete('/classes/{external_id}/subjects/{subject_external_id}', [SchoolClassController::class, 'detachSubject']);
+    });
+
+    Route::middleware('permission:materials.view')->group(function () {
+        Route::get('/materials', [TeachingMaterialController::class, 'index']);
+        Route::get('/materials/{external_id}', [TeachingMaterialController::class, 'show']);
+    });
+
+    Route::middleware('permission:materials.manage')->group(function () {
+        Route::post('/materials', [TeachingMaterialController::class, 'store']);
+        Route::put('/materials/{external_id}', [TeachingMaterialController::class, 'update']);
+        Route::delete('/materials/{external_id}', [TeachingMaterialController::class, 'destroy']);
     });
 
     Route::middleware('permission:roles')->group(function () {

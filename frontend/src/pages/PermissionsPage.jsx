@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório.'),
@@ -23,6 +24,7 @@ export function PermissionsPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedRoleExternalId, setSelectedRoleExternalId] = useState('')
@@ -117,6 +119,7 @@ export function PermissionsPage() {
     },
     onSuccess: async () => {
       setEditing(null)
+      setIsFormModalOpen(false)
       form.reset(initialValues)
       setStatusMessage('Permissão salva com sucesso.')
       toast.success('Permissão salva com sucesso.')
@@ -173,6 +176,7 @@ export function PermissionsPage() {
 
   function onEdit(permission) {
     setEditing(permission)
+    setIsFormModalOpen(true)
     form.setValue('name', permission.name)
     form.setValue('key', permission.key)
     form.setValue('module', permission.module)
@@ -180,7 +184,14 @@ export function PermissionsPage() {
 
   function onCancelEdit() {
     setEditing(null)
+    setIsFormModalOpen(false)
     form.reset(initialValues)
+  }
+
+  function openCreateForm() {
+    setEditing(null)
+    form.reset(initialValues)
+    setIsFormModalOpen(true)
   }
 
   function togglePermission(permissionId) {
@@ -226,11 +237,17 @@ export function PermissionsPage() {
 
   return (
     <div className="module-stack">
-      <div className="module-grid">
+      <div className="module-grid module-grid-single">
         <section className="module-card">
           <div className="section-title-row">
             <h3>Permissões</h3>
             <p>{permissionsQuery.data?.length ?? 0} itens</p>
+          </div>
+          <div className="actions-row module-toolbar-actions">
+            <button type="button" onClick={openCreateForm}>
+              <Icon name="add" size={14} />
+              Cadastrar permissão
+            </button>
           </div>
 
           <div className="table-wrap">
@@ -251,6 +268,7 @@ export function PermissionsPage() {
                     <td>{permission.module}</td>
                     <td className="actions-cell">
                       <button type="button" onClick={() => onEdit(permission)}>
+                        <Icon name="edit" size={14} />
                         Editar
                       </button>
                       <button
@@ -260,6 +278,7 @@ export function PermissionsPage() {
                           deletePermissionMutation.mutate(permission.external_id)
                         }
                       >
+                        <Icon name="delete" size={14} />
                         Excluir
                       </button>
                     </td>
@@ -274,53 +293,63 @@ export function PermissionsPage() {
             onPageChange={(nextPage) => setPage(Math.max(1, nextPage))}
           />
         </section>
-
-        <section className="module-card">
-          <div className="section-title-row">
-            <h3>{editing ? 'Editar Permissão' : 'Nova Permissão'}</h3>
-            {editing && (
-              <button type="button" onClick={onCancelEdit}>
-                Cancelar edição
-              </button>
-            )}
-          </div>
-
-          <form
-            className="stack-form"
-            onSubmit={form.handleSubmit((values) => savePermissionMutation.mutate(values))}
-          >
-            <label>
-              <span>Nome *</span>
-              <input type="text" {...form.register('name')} />
-              {form.formState.errors.name && (
-                <small className="error-text">{form.formState.errors.name.message}</small>
-              )}
-            </label>
-
-            <label>
-              <span>Chave *</span>
-              <input type="text" placeholder="users.manage" {...form.register('key')} />
-              {form.formState.errors.key && (
-                <small className="error-text">{form.formState.errors.key.message}</small>
-              )}
-            </label>
-
-            <label>
-              <span>Módulo *</span>
-              <input type="text" placeholder="users" {...form.register('module')} />
-              {form.formState.errors.module && (
-                <small className="error-text">{form.formState.errors.module.message}</small>
-              )}
-            </label>
-
-            {statusMessage && <p className="status-text">{statusMessage}</p>}
-
-            <button type="submit" disabled={savePermissionMutation.isPending}>
-              {savePermissionMutation.isPending ? 'Salvando...' : 'Salvar'}
-            </button>
-          </form>
-        </section>
       </div>
+
+      {isFormModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={onCancelEdit}>
+          <section
+            className="module-card modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={editing ? 'Editar Permissão' : 'Nova Permissão'}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="section-title-row">
+              <h3>{editing ? 'Editar Permissão' : 'Nova Permissão'}</h3>
+              <button type="button" className="ghost-chip" onClick={onCancelEdit}>
+                <Icon name="close" size={14} />
+                Fechar
+              </button>
+            </div>
+
+            <form
+              className="stack-form"
+              onSubmit={form.handleSubmit((values) => savePermissionMutation.mutate(values))}
+            >
+              <label>
+                <span>Nome *</span>
+                <input type="text" {...form.register('name')} />
+                {form.formState.errors.name && (
+                  <small className="error-text">{form.formState.errors.name.message}</small>
+                )}
+              </label>
+
+              <label>
+                <span>Chave *</span>
+                <input type="text" placeholder="users.manage" {...form.register('key')} />
+                {form.formState.errors.key && (
+                  <small className="error-text">{form.formState.errors.key.message}</small>
+                )}
+              </label>
+
+              <label>
+                <span>Módulo *</span>
+                <input type="text" placeholder="users" {...form.register('module')} />
+                {form.formState.errors.module && (
+                  <small className="error-text">{form.formState.errors.module.message}</small>
+                )}
+              </label>
+
+              {statusMessage && <p className="status-text">{statusMessage}</p>}
+
+              <button type="submit" disabled={savePermissionMutation.isPending}>
+                <Icon name="save" size={14} />
+                {savePermissionMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
 
       <section className="module-card">
         <div className="section-title-row">
@@ -344,6 +373,7 @@ export function PermissionsPage() {
           </label>
 
           <button type="button" onClick={() => saveMatrixMutation.mutate()}>
+            <Icon name="save" size={14} />
             {saveMatrixMutation.isPending ? 'Salvando...' : 'Salvar permissões'}
           </button>
         </div>
@@ -362,6 +392,7 @@ export function PermissionsPage() {
                   className="ghost-chip"
                   onClick={() => selectAllModule(modulePermissions)}
                 >
+                  <Icon name="add" size={14} />
                   Selecionar todos
                 </button>
               </div>

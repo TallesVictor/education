@@ -6,6 +6,7 @@ use App\Http\Requests\StoreSubjectRequest;
 use App\Http\Requests\UpdateSubjectRequest;
 use App\Http\Resources\SubjectResource;
 use App\Models\School;
+use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Support\TenantCache;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class SubjectController extends Controller
 {
@@ -23,7 +25,8 @@ class SubjectController extends Controller
 
         $subjects = Cache::remember($cacheKey, TenantCache::SUBJECTS_TTL, function () {
             return Subject::query()
-                ->with('school')
+                ->with(['school', 'classes'])
+                ->withCount('classes')
                 ->orderBy('name')
                 ->get();
         });
@@ -40,6 +43,20 @@ class SubjectController extends Controller
         if (!empty($schoolExternalIds)) {
             $subjects = $subjects
                 ->filter(fn ($subject) => in_array((string) $subject->school?->external_id, $schoolExternalIds, true))
+                ->values();
+        }
+
+        $classExternalIds = $this->normalizeFilterValues($request->input('filter_class_external_id'));
+        if (!empty($classExternalIds)) {
+            $subjects = $subjects
+                ->filter(function ($subject) use ($classExternalIds) {
+                    $subjectClassExternalIds = $subject->classes
+                        ->pluck('external_id')
+                        ->map(fn ($externalId) => (string) $externalId)
+                        ->all();
+
+                    return !empty(array_intersect($classExternalIds, $subjectClassExternalIds));
+                })
                 ->values();
         }
 
@@ -69,28 +86,46 @@ class SubjectController extends Controller
     {
         $schoolId = $this->resolveSchoolId($request);
 
-        $payload = [
-            'school_id' => $schoolId,
-            'name' => $request->string('name'),
-            'description' => $request->input('description'),
-        ];
+        $subject = DB::transaction(function () use ($request, $schoolId) {
+            $payload = [
+                'school_id' => $schoolId,
+                'name' => $request->string('name'),
+                'description' => $request->input('description'),
+            ];
 
-        if ($request->hasFile('image')) {
-            $payload['image_path'] = $request->file('image')->store('subjects', 'public');
-        }
+            if ($request->hasFile('image')) {
+                $payload['image_path'] = $request->file('image')->store('subjects', 'public');
+            }
 
-        $subject = Subject::query()->create($payload);
+            $subject = Subject::query()->create($payload);
+
+            if ($request->boolean('sync_classes') || $request->has('class_external_ids')) {
+                $classIds = $this->resolveClassIds(
+                    classExternalIds: $request->input('class_external_ids', []),
+                    schoolId: $schoolId,
+                );
+
+                $subject->classes()->sync($classIds);
+            }
+
+            return $subject;
+        });
 
         TenantCache::flushSubjectsCache();
+        TenantCache::flushClassesCache();
 
         return response()->json([
-            'data' => new SubjectResource($subject->load('school')),
+            'data' => new SubjectResource($subject->load(['school', 'classes'])->loadCount('classes')),
         ], 201);
     }
 
     public function show(string $externalId): JsonResponse
     {
-        $subject = Subject::query()->with('school')->where('external_id', $externalId)->firstOrFail();
+        $subject = Subject::query()
+            ->with(['school', 'classes'])
+            ->withCount('classes')
+            ->where('external_id', $externalId)
+            ->firstOrFail();
 
         return response()->json([
             'data' => new SubjectResource($subject),
@@ -101,18 +136,30 @@ class SubjectController extends Controller
     {
         $subject = Subject::query()->where('external_id', $externalId)->firstOrFail();
 
-        $payload = $request->only(['name', 'description']);
+        DB::transaction(function () use ($request, $subject): void {
+            $payload = $request->only(['name', 'description']);
 
-        if ($request->hasFile('image')) {
-            $payload['image_path'] = $request->file('image')->store('subjects', 'public');
-        }
+            if ($request->hasFile('image')) {
+                $payload['image_path'] = $request->file('image')->store('subjects', 'public');
+            }
 
-        $subject->update($payload);
+            $subject->update($payload);
+
+            if ($request->boolean('sync_classes') || $request->has('class_external_ids')) {
+                $classIds = $this->resolveClassIds(
+                    classExternalIds: $request->input('class_external_ids', []),
+                    schoolId: $subject->school_id,
+                );
+
+                $subject->classes()->sync($classIds);
+            }
+        });
 
         TenantCache::flushSubjectsCache();
+        TenantCache::flushClassesCache();
 
         return response()->json([
-            'data' => new SubjectResource($subject->fresh('school')),
+            'data' => new SubjectResource($subject->fresh(['school', 'classes'])->loadCount('classes')),
         ]);
     }
 
@@ -122,6 +169,7 @@ class SubjectController extends Controller
         $subject->delete();
 
         TenantCache::flushSubjectsCache();
+        TenantCache::flushClassesCache();
 
         return response()->json([
             'data' => ['message' => 'Disciplina removida com sucesso.'],
@@ -143,6 +191,21 @@ class SubjectController extends Controller
         }
 
         return School::query()->where('external_id', $request->string('school_external_id'))->value('id');
+    }
+
+    private function resolveClassIds(mixed $classExternalIds, ?int $schoolId): array
+    {
+        if (!is_array($classExternalIds) || empty($classExternalIds)) {
+            return [];
+        }
+
+        $query = SchoolClass::query()->whereIn('external_id', $classExternalIds);
+
+        if (!empty($schoolId)) {
+            $query->where('school_id', $schoolId);
+        }
+
+        return $query->pluck('id')->all();
     }
 
     private function applyContainsFilters(Collection $subjects, string $attribute, array $filterValues): Collection

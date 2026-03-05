@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório.'),
@@ -147,6 +148,7 @@ export function SchoolsPage() {
         </div>
         <div className="actions-row module-toolbar-actions">
           <button type="button" onClick={openCreateForm}>
+            <Icon name="add" size={14} />
             Cadastrar escola
           </button>
         </div>
@@ -171,6 +173,7 @@ export function SchoolsPage() {
                   <td>{school.city || '-'}</td>
                   <td className="actions-cell">
                     <button type="button" onClick={() => onEdit(school)}>
+                      <Icon name="edit" size={14} />
                       Editar
                     </button>
                     <button
@@ -178,6 +181,7 @@ export function SchoolsPage() {
                       className="danger"
                       onClick={() => deleteMutation.mutate(school.external_id)}
                     >
+                      <Icon name="delete" size={14} />
                       Excluir
                     </button>
                   </td>
@@ -205,6 +209,7 @@ export function SchoolsPage() {
             <div className="section-title-row">
               <h3>{editing ? 'Editar Escola' : 'Nova Escola'}</h3>
               <button type="button" className="ghost-chip" onClick={onCancelEdit}>
+                <Icon name="close" size={14} />
                 Fechar
               </button>
             </div>
@@ -272,6 +277,7 @@ export function SchoolsPage() {
               {statusMessage && <p className="status-text">{statusMessage}</p>}
 
               <button type="submit" disabled={saveMutation.isPending}>
+                <Icon name="save" size={14} />
                 {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
               </button>
             </form>

@@ -3,7 +3,7 @@ services:
     image: nginx:alpine
     container_name: escola_nginx
     ports:
-      - "80:80"
+      - "18080:80"
     volumes:
       - ./backend:/var/www/backend:z
       - ./frontend:/var/www/frontend:z

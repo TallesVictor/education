@@ -14,6 +14,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Gerenciar Escolas', 'key' => 'schools.manage', 'module' => 'schools'],
             ['name' => 'Gerenciar Disciplinas', 'key' => 'subjects.manage', 'module' => 'subjects'],
             ['name' => 'Gerenciar Turmas', 'key' => 'classes.manage', 'module' => 'classes'],
+            ['name' => 'Visualizar Materiais Didáticos', 'key' => 'materials.view', 'module' => 'materials'],
+            ['name' => 'Gerenciar Materiais Didáticos', 'key' => 'materials.manage', 'module' => 'materials'],
             ['name' => 'Gerenciar Perfis', 'key' => 'roles.manage', 'module' => 'roles'],
             ['name' => 'Gerenciar Permissões', 'key' => 'permissions.manage', 'module' => 'permissions'],
             ['name' => 'Gerenciar Vínculos', 'key' => 'enrollments.manage', 'module' => 'enrollments'],

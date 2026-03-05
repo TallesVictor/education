@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const individualSchema = z.object({
   user_external_id: z.string().min(1, 'Aluno é obrigatório.'),
@@ -239,6 +240,7 @@ export function EnrollmentsPage() {
                       className="danger"
                       onClick={() => deleteEnrollmentMutation.mutate(enrollment.external_id)}
                     >
+                      <Icon name="unlink" size={14} />
                       Desvincular
                     </button>
                   </td>
@@ -324,6 +326,7 @@ export function EnrollmentsPage() {
             </label>
 
             <button type="submit" disabled={saveEnrollmentMutation.isPending}>
+              <Icon name="save" size={14} />
               {saveEnrollmentMutation.isPending ? 'Salvando...' : 'Salvar vínculo'}
             </button>
           </form>
@@ -379,6 +382,7 @@ export function EnrollmentsPage() {
             <div className="section-title-row">
               <p>{selectedStudentIds.length} selecionados</p>
               <button type="button" className="ghost-chip" onClick={toggleSelectAllVisibleStudents}>
+                <Icon name={areAllStudentsSelected ? 'close' : 'add'} size={14} />
                 {areAllStudentsSelected ? 'Desmarcar visíveis' : 'Selecionar visíveis'}
               </button>
             </div>
@@ -408,6 +412,7 @@ export function EnrollmentsPage() {
             </label>
 
             <button type="submit" disabled={bulkEnrollmentMutation.isPending}>
+              <Icon name="save" size={14} />
               {bulkEnrollmentMutation.isPending ? 'Processando...' : 'Confirmar lote'}
             </button>
           </form>

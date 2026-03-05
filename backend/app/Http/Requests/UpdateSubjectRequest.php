@@ -16,6 +16,8 @@ class UpdateSubjectRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'class_external_ids' => ['nullable', 'array'],
+            'class_external_ids.*' => ['string', 'size:21'],
             'image' => [
                 'nullable',
                 'image',

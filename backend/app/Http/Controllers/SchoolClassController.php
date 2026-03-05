@@ -93,6 +93,7 @@ class SchoolClassController extends Controller
         });
 
         TenantCache::flushClassesCache();
+        TenantCache::flushSubjectsCache();
 
         return response()->json([
             'data' => new SchoolClassResource($class->load(['school', 'subjects'])),
@@ -135,6 +136,7 @@ class SchoolClassController extends Controller
         });
 
         TenantCache::flushClassesCache();
+        TenantCache::flushSubjectsCache();
 
         return response()->json([
             'data' => new SchoolClassResource($class->fresh(['school', 'subjects'])),
@@ -147,6 +149,7 @@ class SchoolClassController extends Controller
         $class->delete();
 
         TenantCache::flushClassesCache();
+        TenantCache::flushSubjectsCache();
 
         return response()->json([
             'data' => ['message' => 'Turma removida com sucesso.'],
@@ -164,6 +167,7 @@ class SchoolClassController extends Controller
 
         $class->subjects()->syncWithoutDetaching($subjectIds);
         TenantCache::flushClassesCache();
+        TenantCache::flushSubjectsCache();
 
         return response()->json([
             'data' => new SchoolClassResource($class->fresh(['school', 'subjects'])),
@@ -181,6 +185,7 @@ class SchoolClassController extends Controller
         }
 
         TenantCache::flushClassesCache();
+        TenantCache::flushSubjectsCache();
 
         return response()->json([
             'data' => ['message' => 'Disciplina desvinculada com sucesso.'],

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const schema = z.object({
   email: z.email('Informe um e-mail válido.'),
@@ -39,13 +40,25 @@ export function LoginPage() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <p className="brand-overline">Sistema Escolar</p>
-        <h1>Acesso ao Painel</h1>
+        <div className="auth-brand">
+          <span className="auth-brand-icon">
+            <Icon name="school" size={18} />
+          </span>
+
+          <div>
+            <p className="brand-overline">RSoft Education</p>
+            <h1>Acesso ao Painel Escolar</h1>
+          </div>
+        </div>
+
+        <p className="auth-lead">
+          Plataforma moderna para centralizar a operação acadêmica de escola, professores e alunos.
+        </p>
 
         <form className="stack-form" onSubmit={form.handleSubmit(onSubmit)}>
           <label>
             <span>E-mail *</span>
-            <input type="email" {...form.register('email')} />
+            <input type="email" placeholder="coordenacao@escola.com" {...form.register('email')} />
             {form.formState.errors.email && (
               <small className="error-text">{form.formState.errors.email.message}</small>
             )}
@@ -53,7 +66,7 @@ export function LoginPage() {
 
           <label>
             <span>Senha *</span>
-            <input type="password" {...form.register('password')} />
+            <input type="password" placeholder="Digite sua senha" {...form.register('password')} />
             {form.formState.errors.password && (
               <small className="error-text">{form.formState.errors.password.message}</small>
             )}
@@ -63,8 +76,26 @@ export function LoginPage() {
             <small className="error-text">{form.formState.errors.root.message}</small>
           )}
 
-          <button type="submit">Entrar</button>
+          <button type="submit">
+            <Icon name="spark" size={15} />
+            Entrar
+          </button>
         </form>
+
+        <div className="auth-footer">
+          <span className="pill-badge">
+            <Icon name="teacher" size={13} />
+            Professores
+          </span>
+          <span className="pill-badge">
+            <Icon name="student" size={13} />
+            Alunos
+          </span>
+          <span className="pill-badge">
+            <Icon name="shield" size={13} />
+            Segurança
+          </span>
+        </div>
       </div>
     </div>
   )

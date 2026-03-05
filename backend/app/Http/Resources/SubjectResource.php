@@ -16,6 +16,14 @@ class SubjectResource extends JsonResource
             'description' => $this->description,
             'image_path' => $this->image_path,
             'image_url' => $this->image_path ? asset('storage/'.$this->image_path) : null,
+            'classes_count' => $this->whenCounted('classes'),
+            'classes' => $this->whenLoaded('classes', function () {
+                return $this->classes->map(fn ($class) => [
+                    'external_id' => $class->external_id,
+                    'name' => $class->name,
+                    'year' => $class->year,
+                ]);
+            }),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

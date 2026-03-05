@@ -6,17 +6,20 @@ import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const schema = z.object({
   school_external_id: z.string().optional(),
   name: z.string().min(1, 'Nome é obrigatório.'),
   description: z.string().optional(),
+  class_external_ids: z.array(z.string()).optional(),
 })
 
 const initialValues = {
   school_external_id: '',
   name: '',
   description: '',
+  class_external_ids: [],
 }
 
 const subjectFilterDefinitions = [
@@ -38,6 +41,12 @@ const subjectFilterDefinitions = [
     key: 'school_external_id',
     label: 'Escola',
     aliases: ['escola', 'school'],
+    type: 'select',
+  },
+  {
+    key: 'class_external_id',
+    label: 'Turma',
+    aliases: ['turma', 'class'],
     type: 'select',
   },
 ]
@@ -77,6 +86,23 @@ export function SubjectsPage() {
     [schoolsQuery.data],
   )
 
+  const classesQuery = useQuery({
+    queryKey: ['classes-subject-form'],
+    queryFn: async () => {
+      const { data } = await api.get('/classes', { params: { per_page: 200 } })
+      return data.data
+    },
+  })
+
+  const classOptions = useMemo(
+    () =>
+      (classesQuery.data ?? []).map((schoolClass) => ({
+        value: schoolClass.external_id,
+        label: `${schoolClass.name} (${schoolClass.year})`,
+      })),
+    [classesQuery.data],
+  )
+
   const subjectFilterOptions = useMemo(
     () =>
       subjectFilterDefinitions.map((filterDefinition) => {
@@ -88,9 +114,17 @@ export function SubjectsPage() {
           }
         }
 
+        if (filterDefinition.key === 'class_external_id') {
+          return {
+            ...filterDefinition,
+            options: classOptions,
+            placeholder: 'Selecione uma ou mais turmas',
+          }
+        }
+
         return filterDefinition
       }),
-    [schoolOptions],
+    [classOptions, schoolOptions],
   )
 
   const draftFilterConfig = useMemo(
@@ -163,9 +197,20 @@ export function SubjectsPage() {
       const formData = new FormData()
       formData.append('name', values.name)
       formData.append('description', values.description || '')
+      formData.append('sync_classes', '1')
 
       if (values.school_external_id) {
         formData.append('school_external_id', values.school_external_id)
+      }
+
+      const classExternalIds = Array.isArray(values.class_external_ids)
+        ? values.class_external_ids
+        : values.class_external_ids
+          ? [values.class_external_ids]
+          : []
+
+      for (const classExternalId of classExternalIds) {
+        formData.append('class_external_ids[]', classExternalId)
       }
 
       if (selectedImage) {
@@ -229,6 +274,10 @@ export function SubjectsPage() {
     form.setValue('school_external_id', subject.school_external_id || '')
     form.setValue('name', subject.name || '')
     form.setValue('description', subject.description || '')
+    form.setValue(
+      'class_external_ids',
+      (subject.classes ?? []).map((schoolClass) => schoolClass.external_id),
+    )
     setSelectedImage(null)
     setImagePreview(subject.image_url || '')
   }
@@ -301,7 +350,8 @@ export function SubjectsPage() {
     }
   }
 
-  function handleAddFilter(rawInput = filterInput) {
+  function handleAddFilter(rawInput = filterInput, options = {}) {
+    const { keepAttributeInInput = false } = options
     const nextFilter = buildFilterFromInput(rawInput)
 
     if (!nextFilter) {
@@ -322,6 +372,15 @@ export function SubjectsPage() {
 
       return [...currentFilters, nextFilter]
     })
+
+    if (keepAttributeInInput) {
+      const nextAttributeAlias =
+        subjectFilterOptions.find((option) => option.key === nextFilter.attribute)?.aliases?.[0] ||
+        nextFilter.attribute
+      setFilterInput(`${nextAttributeAlias}:`)
+      return
+    }
+
     setFilterInput('')
   }
 
@@ -338,6 +397,26 @@ export function SubjectsPage() {
     setFilterInput('')
   }
 
+  function getFilterTagClass(attribute) {
+    if (attribute === 'name') {
+      return 'subject-filter-tag subject-filter-tag-name'
+    }
+
+    if (attribute === 'description') {
+      return 'subject-filter-tag subject-filter-tag-description'
+    }
+
+    if (attribute === 'school_external_id') {
+      return 'subject-filter-tag subject-filter-tag-school'
+    }
+
+    if (attribute === 'class_external_id') {
+      return 'subject-filter-tag subject-filter-tag-class'
+    }
+
+    return 'subject-filter-tag'
+  }
+
   const filterInputSuggestions = useMemo(() => {
     const normalizedInput = filterInput.trim().toLowerCase()
 
@@ -351,6 +430,7 @@ export function SubjectsPage() {
         )
         .map((option) => ({
           id: option.key,
+          attribute: option.key,
           label: option.label,
           hint: `${option.aliases?.[0] || option.key}:valor`,
           onSelect: () => handleFilterAttributeChange(option.key),
@@ -373,11 +453,53 @@ export function SubjectsPage() {
       .slice(0, 8)
       .map((option) => ({
         id: option.value,
+        attribute: draftFilterConfig.key,
         label: option.label,
         hint: `${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.label}`,
-        onSelect: () => handleAddFilter(`${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.value}`),
+        onSelect: () =>
+          handleAddFilter(
+            `${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.value}`,
+            { keepAttributeInInput: draftFilterConfig.key === 'class_external_id' },
+          ),
       }))
   }, [draftFilterConfig, filterInput, subjectFilterOptions])
+
+  const inputAttributePreview = useMemo(() => {
+    const normalizedInput = filterInput.trim().toLowerCase()
+    if (!normalizedInput) {
+      return null
+    }
+
+    const [attributeToken = ''] = normalizedInput.split(':')
+    const resolved = subjectFilterOptions.find(
+      (option) =>
+        option.aliases?.includes(attributeToken) ||
+        option.key === attributeToken ||
+        option.aliases?.some((alias) => alias.startsWith(attributeToken)),
+    )
+
+    return resolved?.key ?? null
+  }, [filterInput, subjectFilterOptions])
+
+  function getAttributeThemeClass(attribute) {
+    if (attribute === 'name') {
+      return 'attribute-theme-name'
+    }
+
+    if (attribute === 'description') {
+      return 'attribute-theme-description'
+    }
+
+    if (attribute === 'school_external_id') {
+      return 'attribute-theme-school'
+    }
+
+    if (attribute === 'class_external_id') {
+      return 'attribute-theme-class'
+    }
+
+    return ''
+  }
 
   return (
     <div className="module-grid module-grid-single">
@@ -388,17 +510,18 @@ export function SubjectsPage() {
         </div>
         <div className="actions-row module-toolbar-actions">
           <button type="button" onClick={openCreateForm}>
+            <Icon name="add" size={14} />
             Cadastrar disciplina
           </button>
         </div>
 
         <section className="subject-filter-builder" aria-label="Filtro de disciplinas">
-          <div className="subject-query-input-shell">
+          <div className={`subject-query-input-shell ${getAttributeThemeClass(inputAttributePreview)}`}>
             {activeFilters.map((filter) => (
               <button
                 key={filter.id}
                 type="button"
-                className="subject-filter-tag"
+                className={getFilterTagClass(filter.attribute)}
                 onClick={() => handleRemoveFilter(filter.id)}
                 title="Remover filtro"
               >
@@ -412,7 +535,7 @@ export function SubjectsPage() {
             <input
               type="text"
               value={filterInput}
-              className="subject-query-input"
+              className={`subject-query-input ${getAttributeThemeClass(inputAttributePreview)}`}
               placeholder="Filtrar... ex.: nome:matemática"
               onFocus={() => setIsFilterInputFocused(true)}
               onBlur={() => window.setTimeout(() => setIsFilterInputFocused(false), 120)}
@@ -431,6 +554,7 @@ export function SubjectsPage() {
 
             {activeFilters.length > 0 && (
               <button type="button" className="ghost-chip" onClick={handleClearFilters}>
+                <Icon name="close" size={14} />
                 Limpar
               </button>
             )}
@@ -442,7 +566,7 @@ export function SubjectsPage() {
                 <button
                   key={suggestion.id}
                   type="button"
-                  className="subject-filter-suggestion"
+                  className={`subject-filter-suggestion ${getAttributeThemeClass(suggestion.attribute)}`}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={suggestion.onSelect}
                 >
@@ -463,6 +587,7 @@ export function SubjectsPage() {
                 <th>Imagem</th>
                 <th>Nome</th>
                 <th>Descrição</th>
+                <th>Turmas</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -478,8 +603,14 @@ export function SubjectsPage() {
                   </td>
                   <td>{subject.name}</td>
                   <td>{subject.description || '-'}</td>
+                  <td>
+                    {(subject.classes ?? []).length > 0
+                      ? subject.classes.map((schoolClass) => schoolClass.name).join(', ')
+                      : '-'}
+                  </td>
                   <td className="actions-cell">
                     <button type="button" onClick={() => onEdit(subject)}>
+                      <Icon name="edit" size={14} />
                       Editar
                     </button>
                     <button
@@ -487,6 +618,7 @@ export function SubjectsPage() {
                       className="danger"
                       onClick={() => deleteMutation.mutate(subject.external_id)}
                     >
+                      <Icon name="delete" size={14} />
                       Excluir
                     </button>
                   </td>
@@ -514,6 +646,7 @@ export function SubjectsPage() {
             <div className="section-title-row">
               <h3>{editing ? 'Editar Disciplina' : 'Nova Disciplina'}</h3>
               <button type="button" className="ghost-chip" onClick={onCancelEdit}>
+                <Icon name="close" size={14} />
                 Fechar
               </button>
             </div>
@@ -543,6 +676,17 @@ export function SubjectsPage() {
               </label>
 
               <label>
+                <span>Turmas</span>
+                <select multiple {...form.register('class_external_ids')}>
+                  {classOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Imagem</span>
                 <input type="file" accept="image/*" onChange={handleImageChange} />
               </label>
@@ -561,6 +705,7 @@ export function SubjectsPage() {
               {statusMessage && <p className="status-text">{statusMessage}</p>}
 
               <button type="submit" disabled={saveMutation.isPending}>
+                <Icon name="save" size={14} />
                 {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
               </button>
             </form>

@@ -24,16 +24,26 @@ class RolePermissionSeeder extends Seeder
             $permissions['users.manage'] ?? null,
             $permissions['subjects.manage'] ?? null,
             $permissions['classes.manage'] ?? null,
+            $permissions['materials.view'] ?? null,
+            $permissions['materials.manage'] ?? null,
             $permissions['enrollments.manage'] ?? null,
         ])));
 
         $coordenador?->permissions()->sync(array_values(array_filter([
             $permissions['subjects.manage'] ?? null,
             $permissions['classes.manage'] ?? null,
+            $permissions['materials.view'] ?? null,
+            $permissions['materials.manage'] ?? null,
             $permissions['enrollments.manage'] ?? null,
         ])));
 
-        $professor?->permissions()->sync([]);
-        $aluno?->permissions()->sync([]);
+        $professor?->permissions()->sync(array_values(array_filter([
+            $permissions['materials.view'] ?? null,
+            $permissions['materials.manage'] ?? null,
+        ])));
+
+        $aluno?->permissions()->sync(array_values(array_filter([
+            $permissions['materials.view'] ?? null,
+        ])));
     }
 }

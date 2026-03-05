@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { PaginationControls } from './PaginationControls'
 import { useToast } from '../hooks/useToast'
+import { Icon } from './Icon'
 
 const PAGE_SIZE = 15
 
@@ -181,6 +182,7 @@ export function CrudModule({
 
             <div className="actions-row">
               <button type="button" className="ghost-chip" onClick={clearFilters}>
+                <Icon name="close" size={14} />
                 Limpar filtros
               </button>
             </div>
@@ -219,6 +221,7 @@ export function CrudModule({
                         onEdit(row)
                       }}
                     >
+                      <Icon name="edit" size={14} />
                       Editar
                     </button>
                     <button
@@ -229,6 +232,7 @@ export function CrudModule({
                         deleteMutation.mutate(row.external_id)
                       }}
                     >
+                      <Icon name="delete" size={14} />
                       Excluir
                     </button>
                   </td>
@@ -250,6 +254,7 @@ export function CrudModule({
             <h3>{editing ? `Editar ${title}` : `Novo ${title}`}</h3>
             {editing && (
               <button type="button" onClick={onCancelEdit}>
+                <Icon name="close" size={14} />
                 Cancelar edição
               </button>
             )}
@@ -305,6 +310,7 @@ export function CrudModule({
             ))}
 
             <button type="submit" disabled={saveMutation.isPending}>
+              <Icon name="save" size={14} />
               {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
             </button>
           </form>
@@ -323,6 +329,7 @@ export function CrudModule({
             <div className="section-title-row">
               <h3>{editing ? `Editar ${title}` : `Novo ${title}`}</h3>
               <button type="button" className="ghost-chip" onClick={onCancelEdit}>
+                <Icon name="close" size={14} />
                 Fechar
               </button>
             </div>
@@ -377,6 +384,7 @@ export function CrudModule({
               ))}
 
               <button type="submit" disabled={saveMutation.isPending}>
+                <Icon name="save" size={14} />
                 {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
               </button>
             </form>

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { api } from '../api/client'
 import { CrudModule } from '../components/CrudModule'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -168,9 +169,11 @@ export function UsersPage() {
         renderListActions={({ openCreateForm }) => (
           <>
             <button type="button" onClick={openCreateForm}>
+              <Icon name="add" size={14} />
               Cadastrar usuário
             </button>
             <button type="button" className="ghost-chip" onClick={() => setIsImportModalOpen(true)}>
+              <Icon name="upload" size={14} />
               Importar usuários
             </button>
           </>
@@ -241,6 +244,7 @@ export function UsersPage() {
             <div className="section-title-row">
               <h3>Importação de Usuários</h3>
               <button type="button" className="ghost-chip" onClick={() => setIsImportModalOpen(false)}>
+                <Icon name="close" size={14} />
                 Fechar
               </button>
             </div>
@@ -290,12 +294,15 @@ export function UsersPage() {
 
             <div className="actions-row">
               <button type="button" onClick={handleDownloadTemplate}>
+                <Icon name="download" size={14} />
                 Baixar modelo
               </button>
               <button type="button" onClick={handlePreview}>
+                <Icon name="upload" size={14} />
                 {previewMutation.isPending ? 'Gerando prévia...' : 'Gerar prévia'}
               </button>
               <button type="button" onClick={handleConfirmImport}>
+                <Icon name="save" size={14} />
                 {confirmMutation.isPending ? 'Importando...' : 'Confirmar importação'}
               </button>
             </div>

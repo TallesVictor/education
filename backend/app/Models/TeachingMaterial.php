@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Subject extends Model
+class TeachingMaterial extends Model
 {
     use BelongsToTenant;
     use HasExternalId;
@@ -19,27 +19,42 @@ class Subject extends Model
 
     protected $fillable = [
         'school_id',
-        'name',
+        'class_id',
+        'title',
         'description',
-        'image_path',
+        'file_path',
+        'file_original_name',
+        'file_mime_type',
+        'file_extension',
+        'file_size',
+        'published_at',
+        'version',
+        'is_visible_to_students',
     ];
 
     protected $hidden = ['id'];
+
+    protected function casts(): array
+    {
+        return [
+            'published_at' => 'datetime',
+            'is_visible_to_students' => 'boolean',
+        ];
+    }
 
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
     }
 
-    public function classes(): BelongsToMany
+    public function schoolClass(): BelongsTo
     {
-        return $this->belongsToMany(SchoolClass::class, 'class_subjects', 'subject_id', 'class_id')
-            ->wherePivotNull('deleted_at');
+        return $this->belongsTo(SchoolClass::class, 'class_id');
     }
 
-    public function teachingMaterials(): BelongsToMany
+    public function subjects(): BelongsToMany
     {
-        return $this->belongsToMany(TeachingMaterial::class, 'teaching_material_subject', 'subject_id', 'teaching_material_id')
+        return $this->belongsToMany(Subject::class, 'teaching_material_subject', 'teaching_material_id', 'subject_id')
             ->wherePivotNull('deleted_at');
     }
 }

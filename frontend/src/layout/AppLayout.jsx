@@ -1,27 +1,30 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
+import { Icon } from '../components/Icon'
 
 const navGroups = [
   {
     title: 'Geral',
-    items: [{ to: '/dashboard', label: 'Painel' }],
+    items: [{ to: '/dashboard', label: 'Painel', icon: 'dashboard' }],
   },
   {
     title: 'Cadastros',
     items: [
-      { to: '/users', label: 'Usuários' },
-      { to: '/schools', label: 'Escolas' },
-      { to: '/subjects', label: 'Disciplinas' },
-      { to: '/classes', label: 'Turmas' },
-      { to: '/enrollments', label: 'Matrículas' },
+      { to: '/users', label: 'Usuários', icon: 'users' },
+      { to: '/schools', label: 'Escolas', icon: 'school' },
+      { to: '/subjects', label: 'Disciplinas', icon: 'subject' },
+      { to: '/materials', label: 'Materiais', icon: 'material' },
+      { to: '/classes', label: 'Turmas', icon: 'class' },
+      { to: '/enrollments', label: 'Matrículas', icon: 'enrollment' },
     ],
   },
   {
     title: 'Acesso',
     items: [
-      { to: '/roles', label: 'Perfis' },
-      { to: '/permissions', label: 'Permissões' },
+      { to: '/roles', label: 'Perfis', icon: 'role' },
+      { to: '/permissions', label: 'Permissões', icon: 'permission' },
     ],
   },
 ]
@@ -30,6 +33,13 @@ export function AppLayout() {
   const { user, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    setIsMobileSidebarOpen(false)
+  }, [location.pathname])
 
   async function handleLogout() {
     await logout()
@@ -37,12 +47,42 @@ export function AppLayout() {
     navigate('/login')
   }
 
+  const currentDate = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  }).format(new Date())
+
+  const shellClassName = [
+    'app-shell',
+    isSidebarCollapsed ? 'app-shell-sidebar-collapsed' : '',
+    isMobileSidebarOpen ? 'app-shell-mobile-nav-open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={shellClassName}>
+      <aside className="sidebar" id="app-sidebar">
+        <div className="sidebar-controls">
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setIsSidebarCollapsed((current) => !current)}
+            aria-expanded={!isSidebarCollapsed}
+            aria-label={isSidebarCollapsed ? 'Expandir menu lateral' : 'Retrair menu lateral'}
+          >
+            <Icon name={isSidebarCollapsed ? 'chevronRight' : 'chevronLeft'} size={16} />
+            <span className="sidebar-toggle-label">
+              {isSidebarCollapsed ? 'Expandir menu' : ''}
+            </span>
+          </button>
+        </div>
+
         <div className="brand-block">
-          <p className="brand-overline">Sistema Web Escolar</p>
-          <h1>Planejement</h1>
+          <p className="brand-overline">Plataforma Escolar</p>
+          <h1>RSoft Education</h1>
+          <p className="sidebar-meta">Tecnologia acadêmica para escola, professores e alunos.</p>
         </div>
 
         <nav className="sidebar-nav">
@@ -53,11 +93,10 @@ export function AppLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  className={({ isActive }) =>
-                    `nav-link ${isActive ? 'nav-link-active' : ''}`
-                  }
+                  className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
                 >
-                  {item.label}
+                  <Icon name={item.icon} className="nav-link-icon" />
+                  <span className="nav-link-text">{item.label}</span>
                 </NavLink>
               ))}
             </div>
@@ -65,17 +104,53 @@ export function AppLayout() {
         </nav>
 
         <button type="button" className="ghost-button" onClick={handleLogout}>
-          Sair
+          <Icon name="logout" />
+          <span className="ghost-button-label">Sair</span>
         </button>
       </aside>
+
+      {isMobileSidebarOpen ? (
+        <button
+          type="button"
+          className="sidebar-overlay"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          aria-label="Fechar menu lateral"
+        />
+      ) : null}
 
       <main className="content">
         <header className="topbar">
           <div>
-            <p className="topbar-kicker">Sessão ativa</p>
+            <p className="topbar-kicker">
+              <span className="topbar-kicker-row">
+                <Icon name="session" size={15} />
+                Sessão ativa
+              </span>
+            </p>
             <h2>Olá, {user?.display_name ?? user?.name}</h2>
           </div>
-          <span className="badge-inline">Multi-tenant</span>
+
+          <div className="topbar-actions">
+            <button
+              type="button"
+              className="mobile-menu-button"
+              onClick={() => setIsMobileSidebarOpen((current) => !current)}
+              aria-expanded={isMobileSidebarOpen}
+              aria-controls="app-sidebar"
+              aria-label={isMobileSidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+            >
+              <Icon name={isMobileSidebarOpen ? 'close' : 'menu'} size={16} />
+              <span>{isMobileSidebarOpen ? 'Fechar menu' : 'Menu'}</span>
+            </button>
+
+            <div className="topbar-badges">
+              <span className="badge-inline badge-inline-primary">
+                <Icon name="shield" size={14} />
+                Ambiente seguro
+              </span>
+              <span className="badge-inline">{currentDate}</span>
+            </div>
+          </div>
         </header>
 
         <section className="page-container">

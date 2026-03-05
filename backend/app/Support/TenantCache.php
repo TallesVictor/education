@@ -15,6 +15,8 @@ class TenantCache
 
     public const CLASSES_TTL = 900;
 
+    public const MATERIALS_TTL = 900;
+
     public const SETTINGS_TTL = 3600;
 
     public const PERMISSIONS_TTL = 3600;
@@ -47,6 +49,11 @@ class TenantCache
     public static function classesKey(string $tenantSegment): string
     {
         return sprintf('school_%s:classes', $tenantSegment);
+    }
+
+    public static function materialsKey(string $tenantSegment): string
+    {
+        return sprintf('school_%s:materials', $tenantSegment);
     }
 
     public static function settingsKey(int $schoolId): string
@@ -92,6 +99,13 @@ class TenantCache
     {
         foreach (self::allTenantSegments() as $tenantSegment) {
             Cache::forget(self::classesKey($tenantSegment));
+        }
+    }
+
+    public static function flushTeachingMaterialsCache(): void
+    {
+        foreach (self::allTenantSegments() as $tenantSegment) {
+            Cache::forget(self::materialsKey($tenantSegment));
         }
     }
 

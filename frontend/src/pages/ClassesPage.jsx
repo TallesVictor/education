@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { CrudModule } from '../components/CrudModule'
+import { Icon } from '../components/Icon'
 
 const schema = z.object({
   school_external_id: z.string().optional(),
@@ -56,6 +57,7 @@ export function ClassesPage() {
       formVariant="modal"
       renderListActions={({ openCreateForm }) => (
         <button type="button" onClick={openCreateForm}>
+          <Icon name="add" size={14} />
           Cadastrar turma
         </button>
       )}
