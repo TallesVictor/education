@@ -12,6 +12,14 @@ const SCOPE_LABELS = {
   class: 'Turma',
 }
 
+const topicQuickFilterOptions = [
+  { value: 'all', label: 'Todos' },
+  { value: 'global', label: 'Globais' },
+  { value: 'school', label: 'Escolas' },
+  { value: 'class', label: 'Turmas' },
+  { value: 'pinned', label: 'Fixados' },
+]
+
 const emptyFilters = {
   search: '',
   scope: '',
@@ -144,6 +152,8 @@ export function ForumsPage() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState(emptyFilters)
   const [draftFilters, setDraftFilters] = useState(emptyFilters)
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [topicQuickFilter, setTopicQuickFilter] = useState('all')
   const [selectedTopicExternalId, setSelectedTopicExternalId] = useState(null)
   const [isTopicFormOpen, setIsTopicFormOpen] = useState(false)
   const [editingTopicExternalId, setEditingTopicExternalId] = useState(null)
@@ -216,12 +226,26 @@ export function ForumsPage() {
     },
   })
 
+  const visibleTopics = useMemo(() => {
+    const topics = topicsQuery.data?.data ?? []
+
+    if (topicQuickFilter === 'all') {
+      return topics
+    }
+
+    if (topicQuickFilter === 'pinned') {
+      return topics.filter((topic) => Boolean(topic.is_pinned))
+    }
+
+    return topics.filter((topic) => topic.scope === topicQuickFilter)
+  }, [topicQuickFilter, topicsQuery.data])
+
   const selectedTopic = useMemo(() => {
-    return (topicsQuery.data?.data ?? []).find((topic) => topic.external_id === selectedTopicExternalId) ?? null
-  }, [topicsQuery.data, selectedTopicExternalId])
+    return visibleTopics.find((topic) => topic.external_id === selectedTopicExternalId) ?? null
+  }, [visibleTopics, selectedTopicExternalId])
 
   useEffect(() => {
-    const topics = topicsQuery.data?.data ?? []
+    const topics = visibleTopics
 
     if (topics.length === 0) {
       setSelectedTopicExternalId(null)
@@ -231,7 +255,7 @@ export function ForumsPage() {
     if (!selectedTopicExternalId || !topics.some((topic) => topic.external_id === selectedTopicExternalId)) {
       setSelectedTopicExternalId(topics[0].external_id)
     }
-  }, [topicsQuery.data, selectedTopicExternalId])
+  }, [visibleTopics, selectedTopicExternalId])
 
   const discussionsQuery = useQuery({
     queryKey: ['forum-discussions', selectedTopicExternalId],
@@ -588,133 +612,143 @@ export function ForumsPage() {
             <p>{topicsQuery.data?.meta?.total ?? 0} registros</p>
           </div>
 
-          <div className="forum-filter-grid">
-            <label>
-              <span>Busca</span>
-              <input
-                type="text"
-                placeholder="Título do tópico"
-                value={draftFilters.search}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, search: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span>Escopo</span>
-              <select
-                value={draftFilters.scope}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    scope: event.target.value,
-                  }))
-                }
-              >
-                <option value="">Todos</option>
-                <option value="global">Global</option>
-                <option value="school">Escola</option>
-                <option value="class">Turma</option>
-              </select>
-            </label>
-            <label>
-              <span>Status</span>
-              <select
-                value={draftFilters.status}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}
-              >
-                <option value="">Todos</option>
-                <option value="open">Abertos</option>
-                <option value="expired">Expirados</option>
-              </select>
-            </label>
-            <label>
-              <span>Escola</span>
-              <select
-                value={draftFilters.school_external_id}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    school_external_id: event.target.value,
-                    class_external_id: '',
-                  }))
-                }
-              >
-                <option value="">Todas</option>
-                {schoolOptions.map((school) => (
-                  <option key={school.external_id} value={school.external_id}>
-                    {school.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Turma</span>
-              <select
-                value={draftFilters.class_external_id}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    class_external_id: event.target.value,
-                  }))
-                }
-              >
-                <option value="">Todas</option>
-                {classOptionsForFilter.map((schoolClass) => (
-                  <option key={schoolClass.external_id} value={schoolClass.external_id}>
-                    {schoolClass.name} ({schoolClass.year})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Autor</span>
-              <input
-                type="text"
-                placeholder="Nome do autor"
-                value={draftFilters.author}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, author: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span>Tag</span>
-              <input
-                type="text"
-                placeholder="Ex: provas"
-                value={draftFilters.tag}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, tag: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span>Data inicial</span>
-              <input
-                type="date"
-                value={draftFilters.date_from}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, date_from: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span>Data final</span>
-              <input
-                type="date"
-                value={draftFilters.date_to}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, date_to: event.target.value }))}
-              />
-            </label>
-          </div>
-
-          <div className="actions-row forum-list-actions">
-            <button type="button" onClick={handleApplyFilters}>
-              Aplicar filtros
-            </button>
-            <button type="button" className="ghost-chip" onClick={handleClearFilters}>
-              Limpar filtros
+          <div className="actions-row forum-list-actions forum-toolbar">
+            <button type="button" className="ghost-chip" onClick={() => setIsFiltersOpen((current) => !current)}>
+              {isFiltersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
             </button>
             {canManageTopics ? (
-              <button type="button" onClick={openCreateTopic}>
+              <button type="button" className="forum-primary-action" onClick={openCreateTopic}>
                 <Icon name="add" size={14} />
                 Novo tópico
               </button>
             ) : null}
           </div>
+
+          {isFiltersOpen ? (
+            <div className="forum-filters-shell">
+              <div className="forum-filter-grid">
+                <label>
+                  <span>Busca</span>
+                  <input
+                    type="text"
+                    placeholder="Título do tópico"
+                    value={draftFilters.search}
+                    onChange={(event) => setDraftFilters((current) => ({ ...current, search: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span>Escopo</span>
+                  <select
+                    value={draftFilters.scope}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({
+                        ...current,
+                        scope: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    <option value="global">Global</option>
+                    <option value="school">Escola</option>
+                    <option value="class">Turma</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={draftFilters.status}
+                    onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}
+                  >
+                    <option value="">Todos</option>
+                    <option value="open">Abertos</option>
+                    <option value="expired">Expirados</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Escola</span>
+                  <select
+                    value={draftFilters.school_external_id}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({
+                        ...current,
+                        school_external_id: event.target.value,
+                        class_external_id: '',
+                      }))
+                    }
+                  >
+                    <option value="">Todas</option>
+                    {schoolOptions.map((school) => (
+                      <option key={school.external_id} value={school.external_id}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Turma</span>
+                  <select
+                    value={draftFilters.class_external_id}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({
+                        ...current,
+                        class_external_id: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Todas</option>
+                    {classOptionsForFilter.map((schoolClass) => (
+                      <option key={schoolClass.external_id} value={schoolClass.external_id}>
+                        {schoolClass.name} ({schoolClass.year})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Autor</span>
+                  <input
+                    type="text"
+                    placeholder="Nome do autor"
+                    value={draftFilters.author}
+                    onChange={(event) => setDraftFilters((current) => ({ ...current, author: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span>Tag</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: provas"
+                    value={draftFilters.tag}
+                    onChange={(event) => setDraftFilters((current) => ({ ...current, tag: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span>Data inicial</span>
+                  <input
+                    type="date"
+                    value={draftFilters.date_from}
+                    onChange={(event) => setDraftFilters((current) => ({ ...current, date_from: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span>Data final</span>
+                  <input
+                    type="date"
+                    value={draftFilters.date_to}
+                    onChange={(event) => setDraftFilters((current) => ({ ...current, date_to: event.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <div className="actions-row forum-list-actions">
+                <button type="button" onClick={handleApplyFilters}>
+                  Aplicar filtros
+                </button>
+                <button type="button" className="ghost-chip" onClick={handleClearFilters}>
+                  Limpar filtros
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {canManageTopics && isTopicFormOpen ? (
             <form className="forum-topic-form" onSubmit={handleSubmitTopic}>
@@ -905,8 +939,21 @@ export function ForumsPage() {
             </form>
           ) : null}
 
+          <div className="forum-quick-filter-row">
+            {topicQuickFilterOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={topicQuickFilter === option.value ? 'ghost-chip ghost-chip-active' : 'ghost-chip'}
+                onClick={() => setTopicQuickFilter(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           <div className="forum-topic-list" role="list">
-            {(topicsQuery.data?.data ?? []).map((topic) => (
+            {visibleTopics.map((topic) => (
               <article
                 key={topic.external_id}
                 className={`forum-topic-item ${selectedTopicExternalId === topic.external_id ? 'forum-topic-item-active' : ''}`}
