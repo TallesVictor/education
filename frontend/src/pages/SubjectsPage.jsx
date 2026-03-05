@@ -19,29 +19,45 @@ const initialValues = {
   description: '',
 }
 
+const subjectFilterDefinitions = [
+  {
+    key: 'name',
+    label: 'Nome',
+    aliases: ['nome', 'name'],
+    type: 'text',
+    placeholder: 'Ex.: Matemática',
+  },
+  {
+    key: 'description',
+    label: 'Descrição',
+    aliases: ['descricao', 'description'],
+    type: 'text',
+    placeholder: 'Ex.: Básica',
+  },
+  {
+    key: 'school_external_id',
+    label: 'Escola',
+    aliases: ['escola', 'school'],
+    type: 'select',
+  },
+]
+
 export function SubjectsPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
+  const [filterInput, setFilterInput] = useState('')
+  const [isFilterInputFocused, setIsFilterInputFocused] = useState(false)
+  const [activeFilters, setActiveFilters] = useState([])
 
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: initialValues,
-  })
-
-  const subjectsQuery = useQuery({
-    queryKey: ['subjects', page],
-    queryFn: async () => {
-      const { data } = await api.get('/subjects', { params: { page, per_page: 15 } })
-      return {
-        data: data.data,
-        meta: data.meta,
-      }
-    },
   })
 
   const schoolsQuery = useQuery({
@@ -60,6 +76,79 @@ export function SubjectsPage() {
       })),
     [schoolsQuery.data],
   )
+
+  const subjectFilterOptions = useMemo(
+    () =>
+      subjectFilterDefinitions.map((filterDefinition) => {
+        if (filterDefinition.key === 'school_external_id') {
+          return {
+            ...filterDefinition,
+            options: schoolOptions,
+            placeholder: 'Selecione uma escola',
+          }
+        }
+
+        return filterDefinition
+      }),
+    [schoolOptions],
+  )
+
+  const draftFilterConfig = useMemo(
+    () => {
+      const [rawAttribute = ''] = filterInput.split(':')
+      const normalizedAttribute = rawAttribute.trim().toLowerCase()
+
+      if (!normalizedAttribute) {
+        return null
+      }
+
+      return (
+        subjectFilterOptions.find(
+          (filterOption) =>
+            filterOption.aliases?.includes(normalizedAttribute) ||
+            filterOption.key === normalizedAttribute,
+        ) ?? null
+      )
+    },
+    [filterInput, subjectFilterOptions],
+  )
+
+  const activeFilterParams = useMemo(() => {
+    const params = {}
+
+    for (const filter of activeFilters) {
+      const paramName = `filter_${filter.attribute}`
+      const currentValue = params[paramName]
+
+      if (currentValue === undefined) {
+        params[paramName] = filter.value
+        continue
+      }
+
+      params[paramName] = Array.isArray(currentValue)
+        ? [...currentValue, filter.value]
+        : [currentValue, filter.value]
+    }
+
+    return params
+  }, [activeFilters])
+
+  const subjectsQuery = useQuery({
+    queryKey: ['subjects', page, activeFilters],
+    queryFn: async () => {
+      const { data } = await api.get('/subjects', {
+        params: {
+          page,
+          per_page: 15,
+          ...activeFilterParams,
+        },
+      })
+      return {
+        data: data.data,
+        meta: data.meta,
+      }
+    },
+  })
 
   useEffect(() => {
     return () => {
@@ -92,6 +181,7 @@ export function SubjectsPage() {
     },
     onSuccess: async () => {
       setEditing(null)
+      setIsFormModalOpen(false)
       setSelectedImage(null)
       setImagePreview('')
       form.reset(initialValues)
@@ -135,6 +225,7 @@ export function SubjectsPage() {
 
   function onEdit(subject) {
     setEditing(subject)
+    setIsFormModalOpen(true)
     form.setValue('school_external_id', subject.school_external_id || '')
     form.setValue('name', subject.name || '')
     form.setValue('description', subject.description || '')
@@ -144,18 +235,224 @@ export function SubjectsPage() {
 
   function onCancelEdit() {
     setEditing(null)
+    setIsFormModalOpen(false)
     setSelectedImage(null)
     setImagePreview('')
     form.reset(initialValues)
   }
 
+  function openCreateForm() {
+    setEditing(null)
+    setSelectedImage(null)
+    setImagePreview('')
+    form.reset(initialValues)
+    setIsFormModalOpen(true)
+  }
+
+  function handleFilterAttributeChange(nextAttribute) {
+    const filterOption = subjectFilterOptions.find((option) => option.key === nextAttribute)
+
+    if (!filterOption) {
+      return
+    }
+
+    setFilterInput(`${filterOption.aliases?.[0] || filterOption.key}:`)
+  }
+
+  function buildFilterFromInput(rawInput) {
+    const [rawAttribute = '', ...valueParts] = rawInput.split(':')
+    const attributeToken = rawAttribute.trim().toLowerCase()
+    const rawValue = valueParts.join(':').trim()
+
+    if (!attributeToken || !rawValue) {
+      return null
+    }
+
+    const filterOption = subjectFilterOptions.find(
+      (option) => option.aliases?.includes(attributeToken) || option.key === attributeToken,
+    )
+
+    if (!filterOption) {
+      return null
+    }
+
+    let filterValue = rawValue
+    let displayValue = rawValue
+
+    if (filterOption.type === 'select') {
+      const matchedOption = filterOption.options?.find(
+        (option) => option.value === rawValue || option.label.toLowerCase() === rawValue.toLowerCase(),
+      )
+
+      if (!matchedOption) {
+        return null
+      }
+
+      filterValue = matchedOption.value
+      displayValue = matchedOption.label
+    }
+
+    return {
+      id: `${filterOption.key}-${Date.now()}-${filterValue}`,
+      attribute: filterOption.key,
+      label: filterOption.label,
+      value: filterValue,
+      displayValue,
+    }
+  }
+
+  function handleAddFilter(rawInput = filterInput) {
+    const nextFilter = buildFilterFromInput(rawInput)
+
+    if (!nextFilter) {
+      return
+    }
+
+    setPage(1)
+    setActiveFilters((currentFilters) => {
+      const alreadyExists = currentFilters.some(
+        (filter) =>
+          filter.attribute === nextFilter.attribute &&
+          filter.value.toLowerCase() === nextFilter.value.toLowerCase(),
+      )
+
+      if (alreadyExists) {
+        return currentFilters
+      }
+
+      return [...currentFilters, nextFilter]
+    })
+    setFilterInput('')
+  }
+
+  function handleRemoveFilter(filterId) {
+    setPage(1)
+    setActiveFilters((currentFilters) =>
+      currentFilters.filter((filter) => filter.id !== filterId),
+    )
+  }
+
+  function handleClearFilters() {
+    setPage(1)
+    setActiveFilters([])
+    setFilterInput('')
+  }
+
+  const filterInputSuggestions = useMemo(() => {
+    const normalizedInput = filterInput.trim().toLowerCase()
+
+    if (!normalizedInput || !normalizedInput.includes(':')) {
+      return subjectFilterOptions
+        .filter((option) =>
+          !normalizedInput
+            ? true
+            : option.label.toLowerCase().includes(normalizedInput) ||
+              option.aliases?.some((alias) => alias.includes(normalizedInput)),
+        )
+        .map((option) => ({
+          id: option.key,
+          label: option.label,
+          hint: `${option.aliases?.[0] || option.key}:valor`,
+          onSelect: () => handleFilterAttributeChange(option.key),
+        }))
+    }
+
+    if (!draftFilterConfig) {
+      return []
+    }
+
+    if (draftFilterConfig.type !== 'select') {
+      return []
+    }
+
+    const [, valuePart = ''] = filterInput.split(':')
+    const normalizedValue = valuePart.trim().toLowerCase()
+
+    return (draftFilterConfig.options ?? [])
+      .filter((option) => option.label.toLowerCase().includes(normalizedValue))
+      .slice(0, 8)
+      .map((option) => ({
+        id: option.value,
+        label: option.label,
+        hint: `${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.label}`,
+        onSelect: () => handleAddFilter(`${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.value}`),
+      }))
+  }, [draftFilterConfig, filterInput, subjectFilterOptions])
+
   return (
-    <div className="module-grid">
+    <div className="module-grid module-grid-single">
       <section className="module-card">
         <div className="section-title-row">
           <h3>Disciplinas</h3>
           <p>{subjectsQuery.data?.meta?.total ?? 0} registros</p>
         </div>
+        <div className="actions-row module-toolbar-actions">
+          <button type="button" onClick={openCreateForm}>
+            Cadastrar disciplina
+          </button>
+        </div>
+
+        <section className="subject-filter-builder" aria-label="Filtro de disciplinas">
+          <div className="subject-query-input-shell">
+            {activeFilters.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                className="subject-filter-tag"
+                onClick={() => handleRemoveFilter(filter.id)}
+                title="Remover filtro"
+              >
+                <span>
+                  {filter.label}: {filter.displayValue || filter.value}
+                </span>
+                <strong aria-hidden="true">x</strong>
+              </button>
+            ))}
+
+            <input
+              type="text"
+              value={filterInput}
+              className="subject-query-input"
+              placeholder="Filtrar... ex.: nome:matemática"
+              onFocus={() => setIsFilterInputFocused(true)}
+              onBlur={() => window.setTimeout(() => setIsFilterInputFocused(false), 120)}
+              onChange={(event) => setFilterInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  handleAddFilter()
+                }
+
+                if (event.key === 'Backspace' && !filterInput && activeFilters.length > 0) {
+                  handleRemoveFilter(activeFilters[activeFilters.length - 1].id)
+                }
+              }}
+            />
+
+            {activeFilters.length > 0 && (
+              <button type="button" className="ghost-chip" onClick={handleClearFilters}>
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {isFilterInputFocused && filterInputSuggestions.length > 0 && (
+            <div className="subject-filter-suggestions" role="listbox" aria-label="Sugestões de filtros">
+              {filterInputSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  className="subject-filter-suggestion"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={suggestion.onSelect}
+                >
+                  <strong>{suggestion.label}</strong>
+                  <span>{suggestion.hint}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
 
         {subjectsQuery.isLoading && <p>Carregando...</p>}
 
@@ -205,63 +502,71 @@ export function SubjectsPage() {
         />
       </section>
 
-      <section className="module-card">
-        <div className="section-title-row">
-          <h3>{editing ? 'Editar Disciplina' : 'Nova Disciplina'}</h3>
-          {editing && (
-            <button type="button" onClick={onCancelEdit}>
-              Cancelar edição
-            </button>
-          )}
-        </div>
-
-        <form
-          className="stack-form"
-          onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
-        >
-          <label>
-            <span>Nome *</span>
-            <input type="text" {...form.register('name')} />
-            {form.formState.errors.name && (
-              <small className="error-text">{form.formState.errors.name.message}</small>
-            )}
-          </label>
-
-          <label>
-            <span>Escola</span>
-            <select {...form.register('school_external_id')}>
-              <option value="">Selecione</option>
-              {schoolOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Imagem</span>
-            <input type="file" accept="image/*" onChange={handleImageChange} />
-          </label>
-
-          {imagePreview && (
-            <div className="image-preview-box">
-              <img src={imagePreview} alt="Preview da disciplina" className="image-preview" />
+      {isFormModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={onCancelEdit}>
+          <section
+            className="module-card modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={editing ? 'Editar Disciplina' : 'Nova Disciplina'}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="section-title-row">
+              <h3>{editing ? 'Editar Disciplina' : 'Nova Disciplina'}</h3>
+              <button type="button" className="ghost-chip" onClick={onCancelEdit}>
+                Fechar
+              </button>
             </div>
-          )}
 
-          <label>
-            <span>Descrição</span>
-            <textarea rows={4} {...form.register('description')} />
-          </label>
+            <form
+              className="stack-form"
+              onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
+            >
+              <label>
+                <span>Nome *</span>
+                <input type="text" {...form.register('name')} />
+                {form.formState.errors.name && (
+                  <small className="error-text">{form.formState.errors.name.message}</small>
+                )}
+              </label>
 
-          {statusMessage && <p className="status-text">{statusMessage}</p>}
+              <label>
+                <span>Escola</span>
+                <select {...form.register('school_external_id')}>
+                  <option value="">Selecione</option>
+                  {schoolOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <button type="submit" disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
-          </button>
-        </form>
-      </section>
+              <label>
+                <span>Imagem</span>
+                <input type="file" accept="image/*" onChange={handleImageChange} />
+              </label>
+
+              {imagePreview && (
+                <div className="image-preview-box">
+                  <img src={imagePreview} alt="Preview da disciplina" className="image-preview" />
+                </div>
+              )}
+
+              <label>
+                <span>Descrição</span>
+                <textarea rows={4} {...form.register('description')} />
+              </label>
+
+              {statusMessage && <p className="status-text">{statusMessage}</p>}
+
+              <button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   )
 }

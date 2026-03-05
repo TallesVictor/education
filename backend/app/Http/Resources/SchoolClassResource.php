@@ -18,6 +18,13 @@ class SchoolClassResource extends JsonResource
             'subjects_count' => $this->whenCounted('subjects'),
             'enrollments_count' => $this->whenCounted('enrollments'),
             'subjects' => SubjectResource::collection($this->whenLoaded('subjects')),
+            'users' => UserResource::collection($this->whenLoaded('enrollments', function () {
+                return $this->enrollments
+                    ->pluck('user')
+                    ->filter()
+                    ->unique('external_id')
+                    ->values();
+            })),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

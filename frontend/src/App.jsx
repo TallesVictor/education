@@ -7,6 +7,7 @@ import { UsersPage } from './pages/UsersPage'
 import { SchoolsPage } from './pages/SchoolsPage'
 import { SubjectsPage } from './pages/SubjectsPage'
 import { ClassesPage } from './pages/ClassesPage'
+import { ClassDetailsPage } from './pages/ClassDetailsPage'
 import { RolesPage } from './pages/RolesPage'
 import { PermissionsPage } from './pages/PermissionsPage'
 import { EnrollmentsPage } from './pages/EnrollmentsPage'
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="schools" element={<SchoolsPage />} />
         <Route path="subjects" element={<SubjectsPage />} />
         <Route path="classes" element={<ClassesPage />} />
+        <Route path="classes/:external_id" element={<ClassDetailsPage />} />
         <Route path="roles" element={<RolesPage />} />
         <Route path="permissions" element={<PermissionsPage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />

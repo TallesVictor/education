@@ -102,7 +102,7 @@ class SchoolClassController extends Controller
     public function show(string $externalId): JsonResponse
     {
         $class = SchoolClass::query()
-            ->with(['school', 'subjects'])
+            ->with(['school', 'subjects', 'enrollments.user'])
             ->withCount(['subjects'])
             ->withCount([
                 'enrollments as enrollments_count' => function ($query) {

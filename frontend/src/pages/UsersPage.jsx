@@ -18,6 +18,7 @@ const schema = z.object({
 
 export function UsersPage() {
   const toast = useToast()
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [importFile, setImportFile] = useState(null)
   const [importRoleExternalId, setImportRoleExternalId] = useState('')
   const [importSchoolExternalId, setImportSchoolExternalId] = useState('')
@@ -163,6 +164,17 @@ export function UsersPage() {
       <CrudModule
         title="Usuário"
         endpoint="users"
+        formVariant="modal"
+        renderListActions={({ openCreateForm }) => (
+          <>
+            <button type="button" onClick={openCreateForm}>
+              Cadastrar usuário
+            </button>
+            <button type="button" className="ghost-chip" onClick={() => setIsImportModalOpen(true)}>
+              Importar usuários
+            </button>
+          </>
+        )}
         columns={[
           { key: 'display_name', label: 'Nome' },
           { key: 'email', label: 'E-mail' },
@@ -217,125 +229,138 @@ export function UsersPage() {
         ]}
       />
 
-      <section className="module-card">
-        <div className="section-title-row">
-          <h3>Importação de Usuários</h3>
-          <p>Preview + confirmação + relatório</p>
-        </div>
-
-        <div className="inline-form two-col">
-          <label>
-            <span>Perfil *</span>
-            <select
-              value={effectiveImportRoleExternalId}
-              onChange={(event) => setImportRoleExternalId(event.target.value)}
-            >
-              <option value="">Selecione</option>
-              {roleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Escola (opcional)</span>
-            <select
-              value={importSchoolExternalId}
-              onChange={(event) => setImportSchoolExternalId(event.target.value)}
-            >
-              <option value="">Selecione</option>
-              {schoolOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="span-2">
-            <span>Arquivo (XLSX/CSV) *</span>
-            <input
-              type="file"
-              accept=".xlsx,.csv,.txt"
-              onChange={(event) => setImportFile(event.target.files?.[0] || null)}
-            />
-          </label>
-        </div>
-
-        <div className="actions-row">
-          <button type="button" onClick={handleDownloadTemplate}>
-            Baixar modelo
-          </button>
-          <button type="button" onClick={handlePreview}>
-            {previewMutation.isPending ? 'Gerando prévia...' : 'Gerar prévia'}
-          </button>
-          <button type="button" onClick={handleConfirmImport}>
-            {confirmMutation.isPending ? 'Importando...' : 'Confirmar importação'}
-          </button>
-        </div>
-
-        <div className="progress-wrap">
-          <div className="progress-bar" style={{ width: `${progress}%` }} />
-        </div>
-
-        {previewData && (
-          <div className="module-card inner-card">
+      {isImportModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setIsImportModalOpen(false)}>
+          <section
+            className="module-card modal-card import-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Importação de usuários"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="section-title-row">
-              <h3>Prévia</h3>
-              <p>
-                {previewData.inserted} inserções | {previewData.updated} atualizações |{' '}
-                {previewData.errors_count} erros
-              </p>
+              <h3>Importação de Usuários</h3>
+              <button type="button" className="ghost-chip" onClick={() => setIsImportModalOpen(false)}>
+                Fechar
+              </button>
             </div>
 
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Linha</th>
-                    <th>Nome</th>
-                    <th>E-mail</th>
-                    <th>CPF</th>
-                    <th>Ação</th>
-                    <th>Mensagem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(previewData.preview_rows ?? []).map((row) => (
-                    <tr key={`${row.line}-${row.email || row.name}`}>
-                      <td>{row.line}</td>
-                      <td>{row.name || '-'}</td>
-                      <td>{row.email || '-'}</td>
-                      <td>{row.cpf || '-'}</td>
-                      <td>{row.action}</td>
-                      <td>{row.message}</td>
-                    </tr>
+            <p className="muted-inline">Preview + confirmação + relatório</p>
+
+            <div className="inline-form two-col">
+              <label>
+                <span>Perfil *</span>
+                <select
+                  value={effectiveImportRoleExternalId}
+                  onChange={(event) => setImportRoleExternalId(event.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  {roleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </label>
+
+              <label>
+                <span>Escola (opcional)</span>
+                <select
+                  value={importSchoolExternalId}
+                  onChange={(event) => setImportSchoolExternalId(event.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  {schoolOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="span-2">
+                <span>Arquivo (XLSX/CSV) *</span>
+                <input
+                  type="file"
+                  accept=".xlsx,.csv,.txt"
+                  onChange={(event) => setImportFile(event.target.files?.[0] || null)}
+                />
+              </label>
             </div>
-          </div>
-        )}
 
-        {resultData && (
-          <div className="status-panel">
-            <p>
-              Importação concluída: {resultData.inserted} inseridos, {resultData.updated} atualizados,
-              {' '}
-              {resultData.errors_count} erros.
-            </p>
-            {resultData.error_report_url && (
-              <a href={resultData.error_report_url} target="_blank" rel="noopener noreferrer">
-                Baixar relatório de erros (XLSX)
-              </a>
+            <div className="actions-row">
+              <button type="button" onClick={handleDownloadTemplate}>
+                Baixar modelo
+              </button>
+              <button type="button" onClick={handlePreview}>
+                {previewMutation.isPending ? 'Gerando prévia...' : 'Gerar prévia'}
+              </button>
+              <button type="button" onClick={handleConfirmImport}>
+                {confirmMutation.isPending ? 'Importando...' : 'Confirmar importação'}
+              </button>
+            </div>
+
+            <div className="progress-wrap">
+              <div className="progress-bar" style={{ width: `${progress}%` }} />
+            </div>
+
+            {previewData && (
+              <div className="module-card inner-card">
+                <div className="section-title-row">
+                  <h3>Prévia</h3>
+                  <p>
+                    {previewData.inserted} inserções | {previewData.updated} atualizações |{' '}
+                    {previewData.errors_count} erros
+                  </p>
+                </div>
+
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Linha</th>
+                        <th>Nome</th>
+                        <th>E-mail</th>
+                        <th>CPF</th>
+                        <th>Ação</th>
+                        <th>Mensagem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(previewData.preview_rows ?? []).map((row) => (
+                        <tr key={`${row.line}-${row.email || row.name}`}>
+                          <td>{row.line}</td>
+                          <td>{row.name || '-'}</td>
+                          <td>{row.email || '-'}</td>
+                          <td>{row.cpf || '-'}</td>
+                          <td>{row.action}</td>
+                          <td>{row.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
-          </div>
-        )}
 
-        {statusMessage && <p className="status-text">{statusMessage}</p>}
-      </section>
+            {resultData && (
+              <div className="status-panel">
+                <p>
+                  Importação concluída: {resultData.inserted} inseridos, {resultData.updated}{' '}
+                  atualizados, {resultData.errors_count} erros.
+                </p>
+                {resultData.error_report_url && (
+                  <a href={resultData.error_report_url} target="_blank" rel="noopener noreferrer">
+                    Baixar relatório de erros (XLSX)
+                  </a>
+                )}
+              </div>
+            )}
+
+            {statusMessage && <p className="status-text">{statusMessage}</p>}
+          </section>
+        </div>
+      )}
     </div>
   )
 }

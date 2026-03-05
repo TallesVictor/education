@@ -204,6 +204,10 @@ a {
   grid-template-columns: 1.35fr 1fr;
 }
 
+.module-grid-single {
+  grid-template-columns: 1fr;
+}
+
 .module-stack {
   display: flex;
   flex-direction: column;
@@ -268,6 +272,14 @@ th {
   color: var(--muted);
 }
 
+.row-clickable {
+  cursor: pointer;
+}
+
+.row-clickable:hover td {
+  background: #f8efe1;
+}
+
 .actions-cell {
   display: flex;
   gap: 0.45rem;
@@ -278,6 +290,11 @@ th {
   gap: 0.5rem;
   flex-wrap: wrap;
   margin-top: 0.9rem;
+}
+
+.module-toolbar-actions {
+  margin-top: 0;
+  margin-bottom: 0.8rem;
 }
 
 .filters-row {
@@ -305,6 +322,99 @@ th {
   color: var(--ink);
 }
 
+.subject-filter-builder {
+  margin-bottom: 0.9rem;
+  padding: 0.65rem;
+  border: 1px dashed #d7c7b5;
+  border-radius: 0.8rem;
+  background: #fff8ee;
+  position: relative;
+}
+
+.subject-query-input-shell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border: 1px solid #ccbba8;
+  border-radius: 0.72rem;
+  background: #fffdf8;
+  padding: 0.4rem;
+  min-height: 52px;
+}
+
+.subject-query-input-shell:focus-within {
+  border-color: #be8f74;
+  box-shadow: 0 0 0 2px rgba(212, 87, 44, 0.12);
+}
+
+.subject-query-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.92rem;
+  flex: 1;
+  min-width: 220px;
+  padding: 0.35rem 0.25rem;
+}
+
+.subject-filter-tag {
+  background: #f4e5d5;
+  border: 1px solid #d2baa1;
+  color: #6f331e;
+  padding: 0.3rem 0.52rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.subject-filter-tag:hover {
+  background: #ead3be;
+}
+
+.subject-filter-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - 2px);
+  left: 0;
+  right: 0;
+  border: 1px solid #d7c7b5;
+  border-radius: 0.72rem;
+  background: #fffdf8;
+  box-shadow: 0 16px 26px rgba(30, 20, 10, 0.12);
+  padding: 0.35rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.subject-filter-suggestion {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.subject-filter-suggestion:hover {
+  border-color: #dcc7b2;
+  background: #faf1e5;
+}
+
+.subject-filter-suggestion span {
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.74rem;
+}
+
 button {
   border: 1px solid #ba5a39;
   background: var(--accent);
@@ -329,6 +439,17 @@ button.danger {
   background: transparent;
   color: var(--accent-dark);
   border: 1px solid #ccbba8;
+}
+
+.ghost-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #ccbba8;
+  border-radius: 0.62rem;
+  padding: 0.45rem 0.7rem;
+  color: var(--accent-dark);
+  text-decoration: none;
+  font-size: 0.9rem;
 }
 
 .stack-form {
@@ -626,6 +747,49 @@ button.danger {
   padding: 0.25rem 0.4rem;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 27, 22, 0.45);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 1200;
+}
+
+.modal-card {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.import-modal-card {
+  width: min(1040px, 100%);
+}
+
+.class-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.class-detail-card {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: #fffdf8;
+  padding: 0.7rem;
+}
+
+.class-detail-card strong {
+  font-size: 1.05rem;
+}
+
+.class-subjects-row {
+  margin-bottom: 1rem;
+}
+
 @keyframes fade-slide {
   from {
     opacity: 0;
@@ -664,6 +828,10 @@ button.danger {
 
   .filters-row {
     grid-template-columns: 1fr;
+  }
+
+  .subject-query-input {
+    min-width: 140px;
   }
 
   .inline-form .span-2 {

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { CrudModule } from '../components/CrudModule'
@@ -12,6 +13,8 @@ const schema = z.object({
 })
 
 export function ClassesPage() {
+  const navigate = useNavigate()
+
   const schoolsQuery = useQuery({
     queryKey: ['schools-classes'],
     queryFn: async () => {
@@ -50,6 +53,13 @@ export function ClassesPage() {
     <CrudModule
       title="Turma"
       endpoint="classes"
+      formVariant="modal"
+      renderListActions={({ openCreateForm }) => (
+        <button type="button" onClick={openCreateForm}>
+          Cadastrar turma
+        </button>
+      )}
+      onRowClick={(row) => navigate(`/classes/${row.external_id}`)}
       columns={[
         { key: 'name', label: 'Nome' },
         { key: 'school_name', label: 'Escola' },

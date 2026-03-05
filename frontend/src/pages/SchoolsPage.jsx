@@ -37,6 +37,7 @@ export function SchoolsPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [editing, setEditing] = useState(null)
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
 
@@ -66,6 +67,7 @@ export function SchoolsPage() {
     },
     onSuccess: async () => {
       setEditing(null)
+      setIsFormModalOpen(false)
       form.reset(initialValues)
       setStatusMessage('Escola salva com sucesso.')
       toast.success('Escola salva com sucesso.')
@@ -118,6 +120,7 @@ export function SchoolsPage() {
 
   function onEdit(school) {
     setEditing(school)
+    setIsFormModalOpen(true)
     for (const key of Object.keys(initialValues)) {
       form.setValue(key, school[key] ?? initialValues[key])
     }
@@ -125,15 +128,27 @@ export function SchoolsPage() {
 
   function onCancelEdit() {
     setEditing(null)
+    setIsFormModalOpen(false)
     form.reset(initialValues)
   }
 
+  function openCreateForm() {
+    setEditing(null)
+    form.reset(initialValues)
+    setIsFormModalOpen(true)
+  }
+
   return (
-    <div className="module-grid">
+    <div className="module-grid module-grid-single">
       <section className="module-card">
         <div className="section-title-row">
           <h3>Escolas</h3>
           <p>{schoolsQuery.data?.meta?.total ?? 0} registros</p>
+        </div>
+        <div className="actions-row module-toolbar-actions">
+          <button type="button" onClick={openCreateForm}>
+            Cadastrar escola
+          </button>
         </div>
 
         {schoolsQuery.isLoading && <p>Carregando...</p>}
@@ -178,83 +193,91 @@ export function SchoolsPage() {
         />
       </section>
 
-      <section className="module-card">
-        <div className="section-title-row">
-          <h3>{editing ? 'Editar Escola' : 'Nova Escola'}</h3>
-          {editing && (
-            <button type="button" onClick={onCancelEdit}>
-              Cancelar edição
-            </button>
-          )}
+      {isFormModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={onCancelEdit}>
+          <section
+            className="module-card modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={editing ? 'Editar Escola' : 'Nova Escola'}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="section-title-row">
+              <h3>{editing ? 'Editar Escola' : 'Nova Escola'}</h3>
+              <button type="button" className="ghost-chip" onClick={onCancelEdit}>
+                Fechar
+              </button>
+            </div>
+
+            <form
+              className="stack-form"
+              onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
+            >
+              <label>
+                <span>Nome *</span>
+                <input type="text" {...form.register('name')} />
+                {form.formState.errors.name && (
+                  <small className="error-text">{form.formState.errors.name.message}</small>
+                )}
+              </label>
+
+              <label>
+                <span>CNPJ</span>
+                <input type="text" {...form.register('cnpj')} />
+              </label>
+
+              <label>
+                <span>Tipo *</span>
+                <select {...form.register('type')}>
+                  <option value="private">Privada</option>
+                  <option value="public">Pública</option>
+                </select>
+              </label>
+
+              <label>
+                <span>CEP</span>
+                <input type="text" {...form.register('zip_code')} onBlur={handleCepBlur} />
+              </label>
+
+              <label>
+                <span>Número</span>
+                <input type="text" {...form.register('number')} />
+              </label>
+
+              <label>
+                <span>Complemento</span>
+                <input type="text" {...form.register('complement')} />
+              </label>
+
+              <label>
+                <span>Rua</span>
+                <input type="text" {...form.register('street')} />
+              </label>
+
+              <label>
+                <span>Bairro</span>
+                <input type="text" {...form.register('neighborhood')} />
+              </label>
+
+              <label>
+                <span>Cidade</span>
+                <input type="text" {...form.register('city')} />
+              </label>
+
+              <label>
+                <span>UF</span>
+                <input type="text" maxLength={2} {...form.register('state')} />
+              </label>
+
+              {statusMessage && <p className="status-text">{statusMessage}</p>}
+
+              <button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </button>
+            </form>
+          </section>
         </div>
-
-        <form
-          className="stack-form"
-          onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
-        >
-          <label>
-            <span>Nome *</span>
-            <input type="text" {...form.register('name')} />
-            {form.formState.errors.name && (
-              <small className="error-text">{form.formState.errors.name.message}</small>
-            )}
-          </label>
-
-          <label>
-            <span>CNPJ</span>
-            <input type="text" {...form.register('cnpj')} />
-          </label>
-
-          <label>
-            <span>Tipo *</span>
-            <select {...form.register('type')}>
-              <option value="private">Privada</option>
-              <option value="public">Pública</option>
-            </select>
-          </label>
-
-          <label>
-            <span>CEP</span>
-            <input type="text" {...form.register('zip_code')} onBlur={handleCepBlur} />
-          </label>
-
-          <label>
-            <span>Número</span>
-            <input type="text" {...form.register('number')} />
-          </label>
-
-          <label>
-            <span>Complemento</span>
-            <input type="text" {...form.register('complement')} />
-          </label>
-
-          <label>
-            <span>Rua</span>
-            <input type="text" {...form.register('street')} />
-          </label>
-
-          <label>
-            <span>Bairro</span>
-            <input type="text" {...form.register('neighborhood')} />
-          </label>
-
-          <label>
-            <span>Cidade</span>
-            <input type="text" {...form.register('city')} />
-          </label>
-
-          <label>
-            <span>UF</span>
-            <input type="text" maxLength={2} {...form.register('state')} />
-          </label>
-
-          {statusMessage && <p className="status-text">{statusMessage}</p>}
-
-          <button type="submit" disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
-          </button>
-        </form>
-      </section>
+      )}
     </div>
   )
 }

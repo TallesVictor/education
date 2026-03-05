@@ -11,6 +11,7 @@ use App\Support\TenantCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class SubjectController extends Controller
@@ -30,6 +31,16 @@ class SubjectController extends Controller
         if ($request->string('name')->isNotEmpty()) {
             $needle = strtolower((string) $request->string('name'));
             $subjects = $subjects->filter(fn ($subject) => str_contains(strtolower($subject->name), $needle))->values();
+        }
+
+        $subjects = $this->applyContainsFilters($subjects, 'name', $this->normalizeFilterValues($request->input('filter_name')));
+        $subjects = $this->applyContainsFilters($subjects, 'description', $this->normalizeFilterValues($request->input('filter_description')));
+
+        $schoolExternalIds = $this->normalizeFilterValues($request->input('filter_school_external_id'));
+        if (!empty($schoolExternalIds)) {
+            $subjects = $subjects
+                ->filter(fn ($subject) => in_array((string) $subject->school?->external_id, $schoolExternalIds, true))
+                ->values();
         }
 
         $perPage = max(1, min(200, (int) $request->input('per_page', 15)));
@@ -132,5 +143,33 @@ class SubjectController extends Controller
         }
 
         return School::query()->where('external_id', $request->string('school_external_id'))->value('id');
+    }
+
+    private function applyContainsFilters(Collection $subjects, string $attribute, array $filterValues): Collection
+    {
+        foreach ($filterValues as $filterValue) {
+            $needle = strtolower($filterValue);
+
+            $subjects = $subjects
+                ->filter(function ($subject) use ($attribute, $needle) {
+                    $value = strtolower((string) ($subject->{$attribute} ?? ''));
+                    return str_contains($value, $needle);
+                })
+                ->values();
+        }
+
+        return $subjects;
+    }
+
+    private function normalizeFilterValues(mixed $rawValues): array
+    {
+        $values = is_array($rawValues) ? $rawValues : [$rawValues];
+
+        return collect($values)
+            ->filter(fn ($value) => is_string($value) || is_numeric($value))
+            ->map(fn ($value) => trim((string) $value))
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
     }
 }
