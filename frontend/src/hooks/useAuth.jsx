@@ -6,13 +6,15 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null)
-  const [user, setUser] = useState(null)
+  const [authenticatedUser, setAuthenticatedUser] = useState(null)
+  const [viewAsRole, setViewAsRole] = useState('')
   const [loading, setLoading] = useState(false)
 
   const clearSession = useCallback(() => {
     clearApiToken()
     setToken(null)
-    setUser(null)
+    setAuthenticatedUser(null)
+    setViewAsRole('')
     setLoading(false)
   }, [])
 
@@ -28,10 +30,29 @@ export function AuthProvider({ children }) {
     }
   }, [clearSession])
 
+  const user = useMemo(() => {
+    if (!authenticatedUser) {
+      return null
+    }
+
+    if (!viewAsRole) {
+      return authenticatedUser
+    }
+
+    return {
+      ...authenticatedUser,
+      role_name: viewAsRole,
+    }
+  }, [authenticatedUser, viewAsRole])
+
   const value = useMemo(
     () => ({
       token,
       user,
+      authenticatedUser,
+      viewAsRole,
+      setViewAsRole,
+      hasRoleSimulation: Boolean(viewAsRole),
       loading,
       isAuthenticated: Boolean(token),
       async login(email, password) {
@@ -45,7 +66,8 @@ export function AuthProvider({ children }) {
 
           setApiToken(data.data.token)
           setToken(data.data.token)
-          setUser(data.data.user)
+          setAuthenticatedUser(data.data.user)
+          setViewAsRole('')
         } finally {
           setLoading(false)
         }
@@ -60,7 +82,7 @@ export function AuthProvider({ children }) {
         clearSession()
       },
     }),
-    [clearSession, token, user, loading],
+    [authenticatedUser, clearSession, loading, token, user, viewAsRole],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

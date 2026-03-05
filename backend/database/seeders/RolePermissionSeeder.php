@@ -27,6 +27,9 @@ class RolePermissionSeeder extends Seeder
             $permissions['materials.view'] ?? null,
             $permissions['materials.manage'] ?? null,
             $permissions['enrollments.manage'] ?? null,
+            $permissions['forums.view'] ?? null,
+            $permissions['forums.topics'] ?? null,
+            $permissions['forums.discussions'] ?? null,
         ])));
 
         $coordenador?->permissions()->sync(array_values(array_filter([
@@ -35,15 +38,23 @@ class RolePermissionSeeder extends Seeder
             $permissions['materials.view'] ?? null,
             $permissions['materials.manage'] ?? null,
             $permissions['enrollments.manage'] ?? null,
+            $permissions['forums.view'] ?? null,
+            $permissions['forums.topics'] ?? null,
+            $permissions['forums.discussions'] ?? null,
         ])));
 
         $professor?->permissions()->sync(array_values(array_filter([
             $permissions['materials.view'] ?? null,
             $permissions['materials.manage'] ?? null,
+            $permissions['forums.view'] ?? null,
+            $permissions['forums.topics'] ?? null,
+            $permissions['forums.discussions'] ?? null,
         ])));
 
         $aluno?->permissions()->sync(array_values(array_filter([
             $permissions['materials.view'] ?? null,
+            $permissions['forums.view'] ?? null,
+            $permissions['forums.discussions'] ?? null,
         ])));
     }
 }

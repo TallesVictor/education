@@ -19,6 +19,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'Gerenciar Perfis', 'key' => 'roles.manage', 'module' => 'roles'],
             ['name' => 'Gerenciar Permissões', 'key' => 'permissions.manage', 'module' => 'permissions'],
             ['name' => 'Gerenciar Vínculos', 'key' => 'enrollments.manage', 'module' => 'enrollments'],
+            ['name' => 'Visualizar Fórum', 'key' => 'forums.view', 'module' => 'forums'],
+            ['name' => 'Gerenciar Tópicos do Fórum', 'key' => 'forums.topics', 'module' => 'forums'],
+            ['name' => 'Participar de Discussões do Fórum', 'key' => 'forums.discussions', 'module' => 'forums'],
         ];
 
         foreach ($permissions as $permission) {

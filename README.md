@@ -39,6 +39,7 @@ docker compose exec app php artisan storage:link
 - Perfis: `/api/roles`
 - Permissões: `/api/permissions`
 - Matrículas: `/api/enrollments`
+- Fórum: `/api/forums/*`
 
 ## Notas
 

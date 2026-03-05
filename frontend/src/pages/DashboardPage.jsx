@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -181,7 +181,36 @@ function useDashboardDataset(endpoint, mode = 'full') {
   })
 }
 
-function KpiCard({ title, value, helper, icon, tone = 'default' }) {
+function WidgetInfo({ label, description }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <span
+      className="dashboard-widget-info-wrap"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        className="dashboard-widget-info-button"
+        aria-label={`Explicação: ${label}`}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <Icon name="info" size={12} />
+      </button>
+
+      {isOpen ? (
+        <span className="dashboard-widget-info-popover" role="tooltip">
+          <strong>{label}</strong>
+          <span>{description}</span>
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+function KpiCard({ title, value, helper, icon, tone = 'default', info }) {
   return (
     <article className={`dashboard-kpi-card dashboard-kpi-card-${tone}`}>
       <div className="dashboard-kpi-card-head">
@@ -189,6 +218,7 @@ function KpiCard({ title, value, helper, icon, tone = 'default' }) {
           <Icon name={icon} size={16} />
         </span>
         <p>{title}</p>
+        <WidgetInfo label={title} description={info || helper} />
       </div>
       <strong className="dashboard-kpi-value">{value}</strong>
       <small className="dashboard-kpi-helper">{helper}</small>
@@ -196,11 +226,14 @@ function KpiCard({ title, value, helper, icon, tone = 'default' }) {
   )
 }
 
-function RankingPanel({ title, subtitle, rows, valueSuffix = '' }) {
+function RankingPanel({ title, subtitle, rows, valueSuffix = '', info }) {
   return (
     <article className="module-card dashboard-panel">
       <div className="section-title-row">
-        <h3>{title}</h3>
+        <h3 className="dashboard-heading-with-info">
+          {title}
+          <WidgetInfo label={title} description={info || subtitle} />
+        </h3>
         <p>{subtitle}</p>
       </div>
 
@@ -231,11 +264,14 @@ function RankingPanel({ title, subtitle, rows, valueSuffix = '' }) {
   )
 }
 
-function AlertsPanel({ title, subtitle, alerts }) {
+function AlertsPanel({ title, subtitle, alerts, info }) {
   return (
     <article className="module-card dashboard-panel">
       <div className="section-title-row">
-        <h3>{title}</h3>
+        <h3 className="dashboard-heading-with-info">
+          {title}
+          <WidgetInfo label={title} description={info || subtitle} />
+        </h3>
         <p>{subtitle}</p>
       </div>
 
@@ -262,7 +298,13 @@ function QuickLinksPanel({ links }) {
   return (
     <article className="module-card dashboard-panel dashboard-panel-full">
       <div className="section-title-row">
-        <h3>Ações de rotina</h3>
+        <h3 className="dashboard-heading-with-info">
+          Ações de rotina
+          <WidgetInfo
+            label="Ações de rotina"
+            description="Atalhos para abrir rapidamente os módulos mais usados no dia a dia do perfil."
+          />
+        </h3>
         <p>Atalhos para decisões rápidas do dia.</p>
       </div>
 
@@ -603,6 +645,7 @@ export function DashboardPage() {
       helper: 'Base para planejamento semanal da coordenação.',
       icon: 'class',
       tone: 'primary',
+      info: 'Mostra quantas turmas você está acompanhando neste momento.',
     },
     {
       title: 'Disciplinas ativas',
@@ -610,6 +653,7 @@ export function DashboardPage() {
       helper: 'Componentes em execução pedagógica.',
       icon: 'subject',
       tone: 'default',
+      info: 'Mostra quantas disciplinas estão em uso na escola.',
     },
     {
       title: 'Matrículas totais',
@@ -617,6 +661,7 @@ export function DashboardPage() {
       helper: 'Vínculos ativos no período atual.',
       icon: 'enrollment',
       tone: 'default',
+      info: 'Mostra quantos alunos estão vinculados às turmas e disciplinas.',
     },
     {
       title: 'Cobertura de material',
@@ -624,6 +669,7 @@ export function DashboardPage() {
       helper: 'Turmas com ao menos um material vinculado.',
       icon: 'material',
       tone: 'success',
+      info: 'Mostra a porcentagem de turmas que já têm material de estudo disponível.',
     },
   ]
 
@@ -634,6 +680,7 @@ export function DashboardPage() {
       helper: 'Equipe e alunos cadastrados no tenant.',
       icon: 'users',
       tone: 'primary',
+      info: 'Mostra o total de pessoas cadastradas e ativas no sistema da escola.',
     },
     {
       title: 'Turmas em operação',
@@ -641,6 +688,7 @@ export function DashboardPage() {
       helper: 'Estrutura acadêmica em execução.',
       icon: 'class',
       tone: 'default',
+      info: 'Mostra quantas turmas estão funcionando atualmente.',
     },
     {
       title: 'Matrículas ativas',
@@ -648,6 +696,7 @@ export function DashboardPage() {
       helper: 'Volume operacional de vínculos.',
       icon: 'enrollment',
       tone: 'default',
+      info: 'Mostra a quantidade total de matrículas em andamento.',
     },
     {
       title: 'Relação aluno/prof.',
@@ -655,6 +704,7 @@ export function DashboardPage() {
       helper: 'Indicador rápido de equilíbrio pedagógico.',
       icon: 'teacher',
       tone: 'success',
+      info: 'Mostra, em média, quantos alunos existem para cada professor.',
     },
   ]
 
@@ -665,6 +715,7 @@ export function DashboardPage() {
       helper: 'Unidades cadastradas na plataforma.',
       icon: 'school',
       tone: 'primary',
+      info: 'Mostra quantas escolas estão cadastradas e em uso no sistema.',
     },
     {
       title: 'Usuários totais',
@@ -672,6 +723,7 @@ export function DashboardPage() {
       helper: 'Contas em operação no sistema.',
       icon: 'users',
       tone: 'default',
+      info: 'Mostra o total de contas criadas para uso da plataforma.',
     },
     {
       title: 'Turmas totais',
@@ -679,6 +731,7 @@ export function DashboardPage() {
       helper: 'Oferta acadêmica consolidada.',
       icon: 'class',
       tone: 'default',
+      info: 'Mostra a quantidade total de turmas registradas.',
     },
     {
       title: 'Cobertura por escola',
@@ -689,6 +742,7 @@ export function DashboardPage() {
       helper: 'Escolas com turmas estruturadas.',
       icon: 'dashboard',
       tone: 'success',
+      info: 'Mostra o percentual de escolas que já têm turmas organizadas.',
     },
   ]
 
@@ -766,11 +820,13 @@ export function DashboardPage() {
             <RankingPanel
               title="Turmas com maior carga"
               subtitle="Alunos distintos vinculados por turma."
+              info="Mostra quais turmas têm mais alunos, para ajudar no equilíbrio entre as salas."
               rows={topClassesByStudents}
             />
             <RankingPanel
               title="Disciplinas com maior alcance"
               subtitle="Cobertura em turmas do período."
+              info="Mostra quais disciplinas chegam a mais turmas e quais ainda podem ser ampliadas."
               rows={topSubjectsByCoverage}
             />
           </div>
@@ -778,7 +834,13 @@ export function DashboardPage() {
           <div className="dashboard-panel-grid">
             <article className="module-card dashboard-panel">
               <div className="section-title-row">
-                <h3>Saúde do acervo didático</h3>
+                <h3 className="dashboard-heading-with-info">
+                  Saúde do acervo didático
+                  <WidgetInfo
+                    label="Saúde do acervo didático"
+                    description="Explica se os materiais estão organizados e visíveis para os alunos das turmas."
+                  />
+                </h3>
                 <p>Qualidade de publicação para alunos.</p>
               </div>
 
@@ -823,6 +885,7 @@ export function DashboardPage() {
             <AlertsPanel
               title="Alertas pedagógicos"
               subtitle="Pontos de atenção para o ciclo atual."
+              info="Mostra problemas que precisam de atenção rápida, como turma sem alunos ou sem material."
               alerts={coordinatorAlerts}
             />
           </div>
@@ -843,11 +906,13 @@ export function DashboardPage() {
             <RankingPanel
               title="Composição por perfil"
               subtitle="Distribuição de usuários por função."
+              info="Mostra como as pessoas estão distribuídas por perfil (ex.: aluno, professor, coordenação)."
               rows={roleDistribution}
             />
             <RankingPanel
               title="Lotação de turmas"
               subtitle="Classes com maior volume de alunos."
+              info="Mostra as turmas mais cheias para facilitar decisões de organização e capacidade."
               rows={topClassesByStudents}
             />
           </div>
@@ -855,7 +920,13 @@ export function DashboardPage() {
           <div className="dashboard-panel-grid">
             <article className="module-card dashboard-panel">
               <div className="section-title-row">
-                <h3>Publicação de materiais</h3>
+                <h3 className="dashboard-heading-with-info">
+                  Publicação de materiais
+                  <WidgetInfo
+                    label="Publicação de materiais"
+                    description="Ajuda a acompanhar se os materiais estão disponíveis para os alunos ou apenas para a equipe."
+                  />
+                </h3>
                 <p>Controle de conteúdo para equipe e estudantes.</p>
               </div>
 
@@ -900,6 +971,7 @@ export function DashboardPage() {
             <AlertsPanel
               title="Risco operacional"
               subtitle="Itens que afetam execução pedagógica."
+              info="Mostra pontos que podem atrapalhar o funcionamento da escola no dia a dia."
               alerts={directionAlerts}
             />
           </div>
@@ -920,11 +992,13 @@ export function DashboardPage() {
             <RankingPanel
               title="Performance por escola"
               subtitle="Peso combinado de turmas, usuários e materiais."
+              info="Compara as escolas pelo uso da plataforma para identificar onde acompanhar mais de perto."
               rows={schoolOperations}
             />
             <RankingPanel
               title="Distribuição por estado"
               subtitle="Cobertura geográfica das unidades."
+              info="Mostra em quais estados as escolas estão concentradas."
               rows={schoolsByState}
             />
           </div>
@@ -933,11 +1007,13 @@ export function DashboardPage() {
             <RankingPanel
               title="Perfil das unidades"
               subtitle="Classificação de tipos de escola."
+              info="Mostra o tipo de cada escola para facilitar visão geral da rede."
               rows={schoolsByType}
             />
             <AlertsPanel
               title="Governança de dados"
               subtitle="Inconsistências cadastrais para correção."
+              info="Aponta cadastros incompletos ou inconsistentes que precisam ser corrigidos."
               alerts={adminAlerts}
             />
           </div>

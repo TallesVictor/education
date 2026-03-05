@@ -14,6 +14,7 @@ import { EnrollmentsPage } from './pages/EnrollmentsPage'
 import { TeachingMaterialsPage } from './pages/TeachingMaterialsPage'
 import { TeachingMaterialDetailsPage } from './pages/TeachingMaterialDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ForumsPage } from './pages/ForumsPage'
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="subjects" element={<SubjectsPage />} />
         <Route path="materials" element={<TeachingMaterialsPage />} />
         <Route path="materials/:external_id" element={<TeachingMaterialDetailsPage />} />
+        <Route path="forums" element={<ForumsPage />} />
         <Route path="classes" element={<ClassesPage />} />
         <Route path="classes/:external_id" element={<ClassDetailsPage />} />
         <Route path="roles" element={<RolesPage />} />

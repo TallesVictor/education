@@ -3,6 +3,8 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CepController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\ForumDiscussionController;
+use App\Http\Controllers\ForumTopicController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchoolClassController;
@@ -100,5 +102,25 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::post('/enrollments/bulk', [EnrollmentController::class, 'bulk']);
         Route::delete('/enrollments/{external_id}', [EnrollmentController::class, 'destroy']);
         Route::get('/enrollments/student/{user_external_id}', [EnrollmentController::class, 'byStudent']);
+    });
+
+    Route::middleware('permission:forums.view')->group(function () {
+        Route::get('/forums/context', [ForumTopicController::class, 'context']);
+        Route::get('/forums/topics', [ForumTopicController::class, 'index']);
+        Route::get('/forums/topics/{external_id}', [ForumTopicController::class, 'show']);
+        Route::get('/forums/topics/{external_id}/discussions', [ForumDiscussionController::class, 'index']);
+    });
+
+    Route::middleware('permission:forums.topics')->group(function () {
+        Route::post('/forums/topics', [ForumTopicController::class, 'store']);
+        Route::put('/forums/topics/{external_id}', [ForumTopicController::class, 'update']);
+        Route::delete('/forums/topics/{external_id}', [ForumTopicController::class, 'destroy']);
+    });
+
+    Route::middleware('permission:forums.discussions')->group(function () {
+        Route::post('/forums/topics/{external_id}/discussions', [ForumDiscussionController::class, 'store']);
+        Route::put('/forums/discussions/{external_id}', [ForumDiscussionController::class, 'update']);
+        Route::delete('/forums/discussions/{external_id}', [ForumDiscussionController::class, 'destroy']);
+        Route::post('/forums/discussions/{external_id}/like', [ForumDiscussionController::class, 'toggleLike']);
     });
 });

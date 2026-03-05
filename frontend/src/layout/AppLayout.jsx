@@ -18,6 +18,7 @@ const navGroups = [
       { to: '/schools', label: 'Escolas', icon: 'school', module: 'schools' },
       { to: '/subjects', label: 'Disciplinas', icon: 'subject', module: 'subjects' },
       { to: '/materials', label: 'Materiais', icon: 'material', module: 'materials' },
+      { to: '/forums', label: 'Fórum', icon: 'forum', module: 'forums' },
       { to: '/classes', label: 'Turmas', icon: 'class', module: 'classes' },
       { to: '/enrollments', label: 'Matrículas', icon: 'enrollment', module: 'enrollments' },
     ],
@@ -35,26 +36,24 @@ const allProfiles = ['Admin', 'Diretor', 'Coordenador', 'Professor', 'Aluno']
 
 const allowedModulesByProfile = {
   admin: null,
-  diretor: ['dashboard', 'users', 'subjects', 'classes', 'materials', 'enrollments'],
-  coordenador: ['dashboard', 'subjects', 'classes', 'materials', 'enrollments'],
-  professor: ['dashboard', 'materials'],
-  aluno: ['dashboard', 'materials'],
+  diretor: ['dashboard', 'users', 'subjects', 'classes', 'materials', 'forums', 'enrollments'],
+  coordenador: ['dashboard', 'subjects', 'classes', 'materials', 'forums', 'enrollments'],
+  professor: ['dashboard', 'materials', 'forums'],
+  aluno: ['dashboard', 'materials', 'forums'],
 }
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
+  const { user, authenticatedUser, viewAsRole, setViewAsRole, hasRoleSimulation, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [viewAsRole, setViewAsRole] = useState('')
 
-  const normalizedCurrentRole = (user?.role_name || '').toLowerCase()
+  const normalizedCurrentRole = (authenticatedUser?.role_name || '').toLowerCase()
   const normalizedViewAsRole = viewAsRole.toLowerCase()
   const activeRole = normalizedViewAsRole || normalizedCurrentRole
   const allowedModules = allowedModulesByProfile[activeRole] ?? null
-  const hasRoleSimulation = Boolean(normalizedViewAsRole)
 
   useEffect(() => {
     setIsMobileSidebarOpen(false)
@@ -129,7 +128,7 @@ export function AppLayout() {
             value={viewAsRole}
             onChange={(event) => setViewAsRole(event.target.value)}
           >
-            <option value="">Perfil atual ({user?.role_name || 'N/A'})</option>
+            <option value="">Perfil atual ({authenticatedUser?.role_name || 'N/A'})</option>
             {allProfiles.map((role) => (
               <option key={role} value={role}>
                 {role}
@@ -221,7 +220,7 @@ export function AppLayout() {
           </div>
         </header>
 
-        <section className="page-container">
+        <section className="page-container" key={`view-as-${activeRole || 'default'}`}>
           <Outlet />
         </section>
       </main>
