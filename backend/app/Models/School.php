@@ -19,6 +19,7 @@ class School extends Model
         'name',
         'cnpj',
         'type',
+        'image_path',
         'zip_code',
         'street',
         'neighborhood',

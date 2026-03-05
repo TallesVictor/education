@@ -14,6 +14,8 @@ class SchoolResource extends JsonResource
             'name' => $this->name,
             'cnpj' => $this->cnpj,
             'type' => $this->type,
+            'image_path' => $this->image_path,
+            'image_url' => $this->image_path ? asset('storage/'.$this->image_path) : null,
             'zip_code' => $this->zip_code,
             'street' => $this->street,
             'neighborhood' => $this->neighborhood,

@@ -468,7 +468,7 @@ export function SubjectsPage() {
               className="stack-form"
               onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
             >
-              <label>
+              <label className="form-span-8">
                 <span>Nome *</span>
                 <input type="text" {...form.register('name')} />
                 {form.formState.errors.name && (
@@ -476,7 +476,12 @@ export function SubjectsPage() {
                 )}
               </label>
 
-              <label>
+              <label className="form-span-4">
+                <span>Imagem</span>
+                <input type="file" accept="image/*" onChange={handleImageChange} />
+              </label>
+
+              <label className="form-span-6">
                 <span>Escolas</span>
                 <Controller
                   name="school_external_ids"
@@ -493,7 +498,7 @@ export function SubjectsPage() {
                 />
               </label>
 
-              <label>
+              <label className="form-span-6">
                 <span>Turmas</span>
                 <Controller
                   name="class_external_ids"
@@ -510,18 +515,13 @@ export function SubjectsPage() {
                 />
               </label>
 
-              <label>
-                <span>Imagem</span>
-                <input type="file" accept="image/*" onChange={handleImageChange} />
-              </label>
-
               {imagePreview && (
                 <div className="image-preview-box">
                   <img src={imagePreview} alt="Preview da disciplina" className="image-preview" />
                 </div>
               )}
 
-              <label>
+              <label className="form-span-12">
                 <span>Descrição</span>
                 <textarea rows={4} {...form.register('description')} />
               </label>

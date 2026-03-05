@@ -495,16 +495,16 @@ export function DashboardPage() {
     )
   }, [materials])
 
-  const schoolsByState = useMemo(() => {
-    const stateCounter = new Map()
+  const schoolsByCity = useMemo(() => {
+    const cityCounter = new Map()
 
     schools.forEach((school) => {
-      const state = String(school.state || 'Sem UF')
-      stateCounter.set(state, (stateCounter.get(state) || 0) + 1)
+      const city = String(school.city || 'Sem cidade')
+      cityCounter.set(city, (cityCounter.get(city) || 0) + 1)
     })
 
     return rankEntries(
-      Array.from(stateCounter.entries()).map(([label, value]) => ({
+      Array.from(cityCounter.entries()).map(([label, value]) => ({
         label,
         value,
         note: 'escolas',
@@ -996,10 +996,10 @@ export function DashboardPage() {
               rows={schoolOperations}
             />
             <RankingPanel
-              title="Distribuição por estado"
+              title="Distribuição por cidade"
               subtitle="Cobertura geográfica das unidades."
-              info="Mostra em quais estados as escolas estão concentradas."
-              rows={schoolsByState}
+              info="Mostra em quais cidades as escolas estão concentradas."
+              rows={schoolsByCity}
             />
           </div>
 

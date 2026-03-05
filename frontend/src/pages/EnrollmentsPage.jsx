@@ -341,7 +341,7 @@ export function EnrollmentsPage() {
                 </div>
 
                 <form className="stack-form" onSubmit={submitIndividual}>
-                  <label>
+                  <label className="form-span-12">
                     <span>Aluno *</span>
                     <select {...individualForm.register('user_external_id')}>
                       <option value="">Selecione</option>
@@ -358,7 +358,7 @@ export function EnrollmentsPage() {
                     )}
                   </label>
 
-                  <label>
+                  <label className="form-span-6">
                     <span>Turma *</span>
                     <select {...individualForm.register('class_external_id')}>
                       <option value="">Selecione</option>
@@ -375,7 +375,7 @@ export function EnrollmentsPage() {
                     )}
                   </label>
 
-                  <label>
+                  <label className="form-span-6">
                     <span>Disciplina *</span>
                     <select {...individualForm.register('subject_external_id')}>
                       <option value="">Selecione</option>
@@ -392,12 +392,12 @@ export function EnrollmentsPage() {
                     )}
                   </label>
 
-                  <label>
+                  <label className="form-span-3">
                     <span>Início</span>
                     <input type="date" {...individualForm.register('start_date')} />
                   </label>
 
-                  <label>
+                  <label className="form-span-3">
                     <span>Fim</span>
                     <input type="date" {...individualForm.register('end_date')} />
                   </label>
@@ -416,7 +416,7 @@ export function EnrollmentsPage() {
                 </div>
 
                 <form className="stack-form" onSubmit={submitBulk}>
-                  <label>
+                  <label className="form-span-6">
                     <span>Turma *</span>
                     <select {...bulkForm.register('class_external_id')}>
                       <option value="">Selecione</option>
@@ -431,7 +431,7 @@ export function EnrollmentsPage() {
                     )}
                   </label>
 
-                  <label>
+                  <label className="form-span-6">
                     <span>Disciplina *</span>
                     <select {...bulkForm.register('subject_external_id')}>
                       <option value="">Selecione</option>
@@ -446,7 +446,7 @@ export function EnrollmentsPage() {
                     )}
                   </label>
 
-                  <label>
+                  <label className="form-span-12">
                     <span>Buscar aluno por nome/e-mail</span>
                     <input
                       type="text"
@@ -478,12 +478,12 @@ export function EnrollmentsPage() {
                     ))}
                   </div>
 
-                  <label>
+                  <label className="form-span-3">
                     <span>Início</span>
                     <input type="date" {...bulkForm.register('start_date')} />
                   </label>
 
-                  <label>
+                  <label className="form-span-3">
                     <span>Fim</span>
                     <input type="date" {...bulkForm.register('end_date')} />
                   </label>

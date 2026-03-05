@@ -10,6 +10,7 @@ use App\Support\TenantCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class SchoolController extends Controller
@@ -42,7 +43,14 @@ class SchoolController extends Controller
 
     public function store(StoreSchoolRequest $request): JsonResponse
     {
-        $school = School::query()->create($request->validated());
+        $payload = $request->validated();
+        unset($payload['image']);
+
+        if ($request->hasFile('image')) {
+            $payload['image_path'] = $request->file('image')->store('schools', 'public');
+        }
+
+        $school = School::query()->create($payload);
 
         TenantCache::flushSettingsCache($school->id);
 
@@ -70,6 +78,8 @@ class SchoolController extends Controller
     public function update(UpdateSchoolRequest $request, string $externalId): JsonResponse
     {
         $school = School::query()->where('external_id', $externalId)->firstOrFail();
+        $payload = $request->validated();
+        unset($payload['image']);
 
         if ($request->filled('cnpj')) {
             $exists = School::query()
@@ -84,7 +94,15 @@ class SchoolController extends Controller
             }
         }
 
-        $school->update($request->validated());
+        if ($request->hasFile('image')) {
+            if (!empty($school->image_path)) {
+                Storage::disk('public')->delete($school->image_path);
+            }
+
+            $payload['image_path'] = $request->file('image')->store('schools', 'public');
+        }
+
+        $school->update($payload);
 
         TenantCache::flushSettingsCache($school->id);
 
@@ -96,6 +114,11 @@ class SchoolController extends Controller
     public function destroy(string $externalId): JsonResponse
     {
         $school = School::query()->where('external_id', $externalId)->firstOrFail();
+
+        if (!empty($school->image_path)) {
+            Storage::disk('public')->delete($school->image_path);
+        }
+
         $school->delete();
 
         TenantCache::flushSettingsCache($school->id);

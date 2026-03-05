@@ -53,11 +53,12 @@ export function RolesPage() {
         is_system: 'false',
       }}
       fields={[
-        { name: 'name', label: 'Nome *' },
+        { name: 'name', label: 'Nome *', span: 8 },
         {
           name: 'is_system',
           label: 'Perfil de sistema',
           type: 'select',
+          span: 4,
           options: [
             { value: 'false', label: 'Não' },
             { value: 'true', label: 'Sim' },

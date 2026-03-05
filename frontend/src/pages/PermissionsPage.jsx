@@ -357,7 +357,7 @@ export function PermissionsPage() {
               className="stack-form"
               onSubmit={form.handleSubmit((values) => savePermissionMutation.mutate(values))}
             >
-              <label>
+              <label className="form-span-6">
                 <span>Nome *</span>
                 <input type="text" {...form.register('name')} />
                 {form.formState.errors.name && (
@@ -365,7 +365,7 @@ export function PermissionsPage() {
                 )}
               </label>
 
-              <label>
+              <label className="form-span-6">
                 <span>Chave *</span>
                 <input type="text" placeholder="users.manage" {...form.register('key')} />
                 {form.formState.errors.key && (
@@ -373,7 +373,7 @@ export function PermissionsPage() {
                 )}
               </label>
 
-              <label>
+              <label className="form-span-6">
                 <span>Módulo *</span>
                 <input type="text" placeholder="users" {...form.register('module')} />
                 {form.formState.errors.module && (

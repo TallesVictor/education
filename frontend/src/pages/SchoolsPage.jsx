@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -43,6 +43,8 @@ export function SchoolsPage() {
   const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
 
   const schoolFilterDefinitions = useMemo(
     () => [
@@ -117,17 +119,44 @@ export function SchoolsPage() {
     },
   })
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
+
   const saveMutation = useMutation({
     mutationFn: async (values) => {
+      const formData = new FormData()
+      formData.append('name', values.name)
+      formData.append('cnpj', values.cnpj || '')
+      formData.append('type', values.type)
+      formData.append('zip_code', values.zip_code || '')
+      formData.append('street', values.street || '')
+      formData.append('neighborhood', values.neighborhood || '')
+      formData.append('city', values.city || '')
+      formData.append('state', values.state || '')
+      formData.append('number', values.number || '')
+      formData.append('complement', values.complement || '')
+
+      if (selectedImage) {
+        formData.append('image', selectedImage)
+      }
+
       if (editing) {
-        await api.put(`/schools/${editing.external_id}`, values)
+        formData.append('_method', 'PUT')
+        await api.post(`/schools/${editing.external_id}`, formData)
       } else {
-        await api.post('/schools', values)
+        await api.post('/schools', formData)
       }
     },
     onSuccess: async () => {
       setEditing(null)
       setIsFormModalOpen(false)
+      setSelectedImage(null)
+      setImagePreview('')
       form.reset(initialValues)
       setStatusMessage('Escola salva com sucesso.')
       toast.success('Escola salva com sucesso.')
@@ -178,22 +207,41 @@ export function SchoolsPage() {
     }
   }
 
+  function handleImageChange(event) {
+    const file = event.target.files?.[0]
+    setSelectedImage(file || null)
+
+    if (!file) {
+      setImagePreview(editing?.image_url || '')
+      return
+    }
+
+    const blobUrl = URL.createObjectURL(file)
+    setImagePreview(blobUrl)
+  }
+
   function onEdit(school) {
     setEditing(school)
     setIsFormModalOpen(true)
     for (const key of Object.keys(initialValues)) {
       form.setValue(key, school[key] ?? initialValues[key])
     }
+    setSelectedImage(null)
+    setImagePreview(school.image_url || '')
   }
 
   function onCancelEdit() {
     setEditing(null)
     setIsFormModalOpen(false)
+    setSelectedImage(null)
+    setImagePreview('')
     form.reset(initialValues)
   }
 
   function openCreateForm() {
     setEditing(null)
+    setSelectedImage(null)
+    setImagePreview('')
     form.reset(initialValues)
     setIsFormModalOpen(true)
   }
@@ -224,24 +272,44 @@ export function SchoolsPage() {
 
         {schoolsQuery.isLoading && <p>Carregando...</p>}
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Cidade</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(schoolsQuery.data?.data ?? []).map((school) => (
-                <tr key={school.external_id}>
-                  <td>{school.name}</td>
-                  <td>{school.type === 'public' ? 'Pública' : 'Privada'}</td>
-                  <td>{school.city || '-'}</td>
-                  <td className="actions-cell">
-                    <button type="button" onClick={() => onEdit(school)}>
+        {!schoolsQuery.isLoading && (schoolsQuery.data?.data ?? []).length === 0 && (
+          <div className="subjects-empty-state">
+            <span className="kpi-icon">
+              <Icon name="school" size={16} />
+            </span>
+            <strong>Nenhuma escola encontrada</strong>
+            <p>Ajuste os filtros ou cadastre uma nova escola para começar.</p>
+          </div>
+        )}
+
+        <div className="school-widget-grid">
+          {(schoolsQuery.data?.data ?? []).map((school) => {
+            const cityLine = school.city && school.state ? `${school.city} - ${school.state}` : school.city || school.state || 'Local não informado'
+            const typeLabel = school.type === 'public' ? 'Pública' : 'Privada'
+
+            return (
+              <article key={school.external_id} className="school-widget-card">
+                <div className="school-widget-media">
+                  {school.image_url ? (
+                    <img src={school.image_url} alt={school.name} className="school-widget-image" />
+                  ) : (
+                    <div className="school-widget-image-fallback">
+                      <Icon name="school" size={24} />
+                      <span>Sem imagem</span>
+                    </div>
+                  )}
+                  <span className={`school-widget-type school-widget-type-${school.type}`}>{typeLabel}</span>
+                </div>
+
+                <div className="school-widget-body">
+                  <h4>{school.name}</h4>
+                  <p className="school-widget-city">{cityLine}</p>
+                  <div className="school-widget-meta">
+                    <span className="pill-badge">CNPJ: {school.cnpj || 'Não informado'}</span>
+                  </div>
+
+                  <div className="school-widget-actions">
+                    <button type="button" className="ghost-chip" onClick={() => onEdit(school)}>
                       <Icon name="edit" size={14} />
                       Editar
                     </button>
@@ -253,11 +321,11 @@ export function SchoolsPage() {
                       <Icon name="delete" size={14} />
                       Excluir
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
 
         <PaginationControls
@@ -287,7 +355,7 @@ export function SchoolsPage() {
               className="stack-form"
               onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
             >
-              <label>
+              <label className="form-span-8">
                 <span>Nome *</span>
                 <input type="text" {...form.register('name')} />
                 {form.formState.errors.name && (
@@ -295,12 +363,12 @@ export function SchoolsPage() {
                 )}
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>CNPJ</span>
                 <input type="text" {...form.register('cnpj')} />
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>Tipo *</span>
                 <select {...form.register('type')}>
                   <option value="private">Privada</option>
@@ -308,37 +376,48 @@ export function SchoolsPage() {
                 </select>
               </label>
 
-              <label>
+              <label className="form-span-8">
+                <span>Imagem</span>
+                <input type="file" accept="image/*" onChange={handleImageChange} />
+              </label>
+
+              {imagePreview && (
+                <div className="image-preview-box">
+                  <img src={imagePreview} alt="Preview da escola" className="image-preview" />
+                </div>
+              )}
+
+              <label className="form-span-4">
                 <span>CEP</span>
                 <input type="text" {...form.register('zip_code')} onBlur={handleCepBlur} />
               </label>
 
-              <label>
+              <label className="form-span-3">
                 <span>Número</span>
                 <input type="text" {...form.register('number')} />
               </label>
 
-              <label>
+              <label className="form-span-5">
                 <span>Complemento</span>
                 <input type="text" {...form.register('complement')} />
               </label>
 
-              <label>
+              <label className="form-span-8">
                 <span>Rua</span>
                 <input type="text" {...form.register('street')} />
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>Bairro</span>
                 <input type="text" {...form.register('neighborhood')} />
               </label>
 
-              <label>
+              <label className="form-span-8">
                 <span>Cidade</span>
                 <input type="text" {...form.register('city')} />
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>UF</span>
                 <input type="text" maxLength={2} {...form.register('state')} />
               </label>

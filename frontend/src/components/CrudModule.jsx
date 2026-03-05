@@ -10,6 +10,69 @@ import { Icon } from './Icon'
 import { MultiSelectField } from './MultiSelectField'
 
 const PAGE_SIZE = 15
+const SHORT_FIELD_PATTERN = /(cpf|cnpj|cep|zip|uf|state|sigla|codigo|code|ano|year|numero|number|version|versao|tipo|type|status)/i
+const MEDIUM_FIELD_PATTERN = /(telefone|phone|senha|password|perfil|role|modulo|module|data|date|hora|time)/i
+const LARGE_FIELD_PATTERN = /(email|nome|name|title|titulo|rua|street|bairro|city|cidade|complemento|complement|address|endereco)/i
+const FULL_WIDTH_FIELD_PATTERN = /(descricao|description|observacao|observation|detalhe|detail|nota|notes|comentario|comment)/i
+
+function normalizeFieldHint(value) {
+  return `${value ?? ''}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function normalizeFieldSpan(value) {
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+
+  const numericValue = Number(value)
+
+  if (!Number.isFinite(numericValue)) {
+    return null
+  }
+
+  return Math.max(1, Math.min(12, Math.round(numericValue)))
+}
+
+function inferFieldSpan(field) {
+  if (field.type === 'textarea' || field.type === 'multiselect' || field.type === 'file') {
+    return 12
+  }
+
+  const hint = normalizeFieldHint(`${field.name ?? ''} ${field.label ?? ''}`.trim())
+
+  if (FULL_WIDTH_FIELD_PATTERN.test(hint)) {
+    return 12
+  }
+
+  if (SHORT_FIELD_PATTERN.test(hint)) {
+    return 4
+  }
+
+  if (MEDIUM_FIELD_PATTERN.test(hint)) {
+    return 6
+  }
+
+  if (field.type === 'number') {
+    return 4
+  }
+
+  if (field.type === 'date' || field.type === 'datetime-local' || field.type === 'time') {
+    return 4
+  }
+
+  if (LARGE_FIELD_PATTERN.test(hint)) {
+    return 8
+  }
+
+  if (field.type === 'select' || field.type === 'email' || field.type === 'password') {
+    return 6
+  }
+
+  return 6
+}
 
 export function CrudModule({
   title,
@@ -170,11 +233,26 @@ export function CrudModule({
     return Boolean(field.required)
   }
 
+  function resolveFieldSpan(field) {
+    const explicitSpan = normalizeFieldSpan(field.span)
+
+    if (explicitSpan !== null) {
+      return explicitSpan
+    }
+
+    return inferFieldSpan(field)
+  }
+
   function renderField(field) {
     const isRequired = resolveFieldRequired(field)
+    const fieldSpan = resolveFieldSpan(field)
 
     return (
-      <label key={field.name}>
+      <label
+        key={field.name}
+        className={field.className || undefined}
+        style={{ '--form-field-span': `${fieldSpan}` }}
+      >
         <span>
           {field.label}
           {isRequired && (

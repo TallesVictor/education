@@ -541,7 +541,7 @@ export function TeachingMaterialsPage() {
               className="stack-form"
               onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
             >
-              <label>
+              <label className="form-span-8">
                 <span>Título *</span>
                 <input type="text" {...form.register('title')} />
                 {form.formState.errors.title && (
@@ -549,7 +549,7 @@ export function TeachingMaterialsPage() {
                 )}
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>Escola</span>
                 <select {...form.register('school_external_id')}>
                   <option value="">Selecione</option>
@@ -561,7 +561,7 @@ export function TeachingMaterialsPage() {
                 </select>
               </label>
 
-              <label>
+              <label className="form-span-12">
                 <span>Disciplinas (vínculo 1:N)</span>
                 <Controller
                   name="subject_external_ids"
@@ -578,7 +578,7 @@ export function TeachingMaterialsPage() {
                 />
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>Turma</span>
                 <select {...form.register('class_external_id')}>
                   <option value="">Selecione</option>
@@ -590,22 +590,22 @@ export function TeachingMaterialsPage() {
                 </select>
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>Data de publicação</span>
                 <input type="datetime-local" {...form.register('published_at')} />
               </label>
 
-              <label>
+              <label className="form-span-4">
                 <span>Versão</span>
                 <input type="text" placeholder="Ex.: v1.0" {...form.register('version')} />
               </label>
 
-              <label className="material-checkbox-field">
+              <label className="material-checkbox-field form-span-4">
                 <input type="checkbox" {...form.register('is_visible_to_students')} />
                 <span>Disponível para alunos</span>
               </label>
 
-              <label>
+              <label className="form-span-8">
                 <span>{editing ? 'Novo arquivo (opcional)' : 'Arquivo *'}</span>
                 <input
                   type="file"
@@ -619,7 +619,7 @@ export function TeachingMaterialsPage() {
                 )}
               </label>
 
-              <label>
+              <label className="form-span-12">
                 <span>Descrição</span>
                 <textarea rows={4} {...form.register('description')} />
               </label>

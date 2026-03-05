@@ -17,6 +17,7 @@ class StoreSchoolRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'cnpj' => ['nullable', 'string', 'max:18', 'unique:schools,cnpj'],
             'type' => ['required', 'in:public,private'],
+            'image' => ['nullable', 'image', 'max:2048', 'mimes:jpg,jpeg,png,webp,gif', 'mimetypes:image/jpeg,image/png,image/webp,image/gif'],
             'zip_code' => ['nullable', 'string', 'max:9'],
             'street' => ['nullable', 'string', 'max:255'],
             'neighborhood' => ['nullable', 'string', 'max:255'],

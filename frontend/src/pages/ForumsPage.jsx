@@ -154,6 +154,7 @@ export function ForumsPage() {
   const [draftFilters, setDraftFilters] = useState(emptyFilters)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [topicQuickFilter, setTopicQuickFilter] = useState('all')
+  const [isTopicControlOpen, setIsTopicControlOpen] = useState(false)
   const [selectedTopicExternalId, setSelectedTopicExternalId] = useState(null)
   const [isTopicFormOpen, setIsTopicFormOpen] = useState(false)
   const [editingTopicExternalId, setEditingTopicExternalId] = useState(null)
@@ -616,6 +617,13 @@ export function ForumsPage() {
             <button type="button" className="ghost-chip" onClick={() => setIsFiltersOpen((current) => !current)}>
               {isFiltersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
             </button>
+            <button
+              type="button"
+              className={isTopicControlOpen ? 'ghost-chip ghost-chip-active' : 'ghost-chip'}
+              onClick={() => setIsTopicControlOpen((current) => !current)}
+            >
+              Controle de tópicos
+            </button>
             {canManageTopics ? (
               <button type="button" className="forum-primary-action" onClick={openCreateTopic}>
                 <Icon name="add" size={14} />
@@ -952,60 +960,64 @@ export function ForumsPage() {
             ))}
           </div>
 
-          <div className="forum-topic-list" role="list">
-            {visibleTopics.map((topic) => (
-              <article
-                key={topic.external_id}
-                className={`forum-topic-item ${selectedTopicExternalId === topic.external_id ? 'forum-topic-item-active' : ''}`}
-                onClick={() => setSelectedTopicExternalId(topic.external_id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    setSelectedTopicExternalId(topic.external_id)
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="forum-topic-main">
-                  <header>
-                    <h4>{topic.title}</h4>
-                    <div className="forum-topic-badges">
-                      <span className="pill-badge">{SCOPE_LABELS[topic.scope] || topic.scope}</span>
-                      {topic.is_pinned ? <span className="pill-badge">Fixado</span> : null}
-                      {topic.is_expired ? <span className="pill-badge warning">Expirado</span> : null}
-                    </div>
-                  </header>
+          {isTopicControlOpen ? (
+            <div className="forum-topic-list" role="list">
+              {visibleTopics.map((topic) => (
+                <article
+                  key={topic.external_id}
+                  className={`forum-topic-item ${selectedTopicExternalId === topic.external_id ? 'forum-topic-item-active' : ''}`}
+                  onClick={() => setSelectedTopicExternalId(topic.external_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedTopicExternalId(topic.external_id)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="forum-topic-main">
+                    <header>
+                      <h4>{topic.title}</h4>
+                      <div className="forum-topic-badges">
+                        <span className="pill-badge">{SCOPE_LABELS[topic.scope] || topic.scope}</span>
+                        {topic.is_pinned ? <span className="pill-badge">Fixado</span> : null}
+                        {topic.is_expired ? <span className="pill-badge warning">Expirado</span> : null}
+                      </div>
+                    </header>
 
-                  <p>{topic.description || 'Sem descrição.'}</p>
+                    <p>{topic.description || 'Sem descrição.'}</p>
 
-                  <footer>
-                    <span>{topic.created_by?.name || 'Usuário'}</span>
-                    <span>{topic.discussion_count ?? 0} discussões</span>
-                  </footer>
-                </div>
-
-                {canManageTopics ? (
-                  <div className="forum-topic-actions" onClick={(event) => event.stopPropagation()}>
-                    <button type="button" className="ghost-chip" onClick={() => openEditTopic(topic)}>
-                      <Icon name="edit" size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-chip danger"
-                      onClick={() => {
-                        if (window.confirm('Deseja remover este tópico?')) {
-                          deleteTopicMutation.mutate(topic.external_id)
-                        }
-                      }}
-                    >
-                      <Icon name="delete" size={14} />
-                    </button>
+                    <footer>
+                      <span>{topic.created_by?.name || 'Usuário'}</span>
+                      <span>{topic.discussion_count ?? 0} discussões</span>
+                    </footer>
                   </div>
-                ) : null}
-              </article>
-            ))}
-          </div>
+
+                  {canManageTopics ? (
+                    <div className="forum-topic-actions" onClick={(event) => event.stopPropagation()}>
+                      <button type="button" className="ghost-chip" onClick={() => openEditTopic(topic)}>
+                        <Icon name="edit" size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-chip danger"
+                        onClick={() => {
+                          if (window.confirm('Deseja remover este tópico?')) {
+                            deleteTopicMutation.mutate(topic.external_id)
+                          }
+                        }}
+                      >
+                        <Icon name="delete" size={14} />
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="muted-inline">Controle de tópicos oculto.</p>
+          )}
 
           <PaginationControls meta={topicsQuery.data?.meta} onPageChange={(nextPage) => setPage(nextPage)} />
         </section>
