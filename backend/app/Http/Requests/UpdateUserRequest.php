@@ -17,7 +17,7 @@ class UpdateUserRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'social_name' => ['nullable', 'string', 'max:255'],
-            'email' => ['sometimes', 'required', 'email:rfc,dns', 'max:255'],
+            'email' => ['sometimes', 'required', 'email', 'max:255'],
             'password' => ['nullable', 'string', 'min:6'],
             'cpf' => ['nullable', 'string', 'max:14', new CpfRule()],
             'phone' => ['nullable', 'string', 'max:20'],

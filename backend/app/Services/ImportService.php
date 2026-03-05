@@ -265,7 +265,7 @@ class ImportService
     {
         return Validator::make(
             ['email' => $email],
-            ['email' => ['required', 'email:rfc,dns']],
+            ['email' => ['required', 'email']],
         )->passes();
     }
 

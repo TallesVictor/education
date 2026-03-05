@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
+import { AttributeSearchFilter } from '../components/AttributeSearchFilter'
 import { useToast } from '../hooks/useToast'
 import { Icon } from '../components/Icon'
 
@@ -27,8 +28,36 @@ export function PermissionsPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
+  const [activeFilters, setActiveFilters] = useState([])
   const [selectedRoleExternalId, setSelectedRoleExternalId] = useState('')
   const [matrixDraft, setMatrixDraft] = useState({})
+
+  const permissionFilterDefinitions = useMemo(
+    () => [
+      {
+        key: 'name',
+        label: 'Nome',
+        aliases: ['nome', 'name'],
+        type: 'text',
+        theme: 'name',
+      },
+      {
+        key: 'key',
+        label: 'Chave',
+        aliases: ['chave', 'key'],
+        type: 'text',
+        theme: 'class',
+      },
+      {
+        key: 'module',
+        label: 'Módulo',
+        aliases: ['modulo', 'module'],
+        type: 'text',
+        theme: 'school',
+      },
+    ],
+    [],
+  )
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -36,9 +65,11 @@ export function PermissionsPage() {
   })
 
   const permissionsQuery = useQuery({
-    queryKey: ['permissions'],
+    queryKey: ['permissions', activeFilters],
     queryFn: async () => {
-      const { data } = await api.get('/permissions')
+      const { data } = await api.get('/permissions', {
+        params: buildPermissionFilterParams(activeFilters),
+      })
       return data.data
     },
   })
@@ -250,6 +281,16 @@ export function PermissionsPage() {
             </button>
           </div>
 
+          <AttributeSearchFilter
+            definitions={permissionFilterDefinitions}
+            activeFilters={activeFilters}
+            onChange={(nextFilters) => {
+              setPage(1)
+              setActiveFilters(nextFilters)
+            }}
+            placeholder="Filtrar permissões... ex.: módulo:users"
+          />
+
           <div className="table-wrap">
             <table>
               <thead>
@@ -416,4 +457,24 @@ export function PermissionsPage() {
       </section>
     </div>
   )
+}
+
+function buildPermissionFilterParams(activeFilters) {
+  const params = {}
+
+  for (const filter of activeFilters) {
+    const key = filter.attribute
+    const currentValue = params[key]
+
+    if (currentValue === undefined) {
+      params[key] = filter.value
+      continue
+    }
+
+    params[key] = Array.isArray(currentValue)
+      ? [...currentValue, filter.value]
+      : [currentValue, filter.value]
+  }
+
+  return params
 }

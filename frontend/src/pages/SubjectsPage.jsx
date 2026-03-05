@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
+import { AttributeSearchFilter } from '../components/AttributeSearchFilter'
 import { useToast } from '../hooks/useToast'
 import { Icon } from '../components/Icon'
 
@@ -28,6 +29,7 @@ const subjectFilterDefinitions = [
     label: 'Nome',
     aliases: ['nome', 'name'],
     type: 'text',
+    theme: 'name',
     placeholder: 'Ex.: Matemática',
   },
   {
@@ -35,6 +37,7 @@ const subjectFilterDefinitions = [
     label: 'Descrição',
     aliases: ['descricao', 'description'],
     type: 'text',
+    theme: 'description',
     placeholder: 'Ex.: Básica',
   },
   {
@@ -42,12 +45,15 @@ const subjectFilterDefinitions = [
     label: 'Escola',
     aliases: ['escola', 'school'],
     type: 'select',
+    theme: 'school',
   },
   {
     key: 'class_external_id',
     label: 'Turma',
     aliases: ['turma', 'class'],
     type: 'select',
+    theme: 'class',
+    keepAttributeInInput: true,
   },
 ]
 
@@ -60,8 +66,6 @@ export function SubjectsPage() {
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
-  const [filterInput, setFilterInput] = useState('')
-  const [isFilterInputFocused, setIsFilterInputFocused] = useState(false)
   const [activeFilters, setActiveFilters] = useState([])
 
   const form = useForm({
@@ -125,26 +129,6 @@ export function SubjectsPage() {
         return filterDefinition
       }),
     [classOptions, schoolOptions],
-  )
-
-  const draftFilterConfig = useMemo(
-    () => {
-      const [rawAttribute = ''] = filterInput.split(':')
-      const normalizedAttribute = rawAttribute.trim().toLowerCase()
-
-      if (!normalizedAttribute) {
-        return null
-      }
-
-      return (
-        subjectFilterOptions.find(
-          (filterOption) =>
-            filterOption.aliases?.includes(normalizedAttribute) ||
-            filterOption.key === normalizedAttribute,
-        ) ?? null
-      )
-    },
-    [filterInput, subjectFilterOptions],
   )
 
   const activeFilterParams = useMemo(() => {
@@ -298,209 +282,6 @@ export function SubjectsPage() {
     setIsFormModalOpen(true)
   }
 
-  function handleFilterAttributeChange(nextAttribute) {
-    const filterOption = subjectFilterOptions.find((option) => option.key === nextAttribute)
-
-    if (!filterOption) {
-      return
-    }
-
-    setFilterInput(`${filterOption.aliases?.[0] || filterOption.key}:`)
-  }
-
-  function buildFilterFromInput(rawInput) {
-    const [rawAttribute = '', ...valueParts] = rawInput.split(':')
-    const attributeToken = rawAttribute.trim().toLowerCase()
-    const rawValue = valueParts.join(':').trim()
-
-    if (!attributeToken || !rawValue) {
-      return null
-    }
-
-    const filterOption = subjectFilterOptions.find(
-      (option) => option.aliases?.includes(attributeToken) || option.key === attributeToken,
-    )
-
-    if (!filterOption) {
-      return null
-    }
-
-    let filterValue = rawValue
-    let displayValue = rawValue
-
-    if (filterOption.type === 'select') {
-      const matchedOption = filterOption.options?.find(
-        (option) => option.value === rawValue || option.label.toLowerCase() === rawValue.toLowerCase(),
-      )
-
-      if (!matchedOption) {
-        return null
-      }
-
-      filterValue = matchedOption.value
-      displayValue = matchedOption.label
-    }
-
-    return {
-      id: `${filterOption.key}-${Date.now()}-${filterValue}`,
-      attribute: filterOption.key,
-      label: filterOption.label,
-      value: filterValue,
-      displayValue,
-    }
-  }
-
-  function handleAddFilter(rawInput = filterInput, options = {}) {
-    const { keepAttributeInInput = false } = options
-    const nextFilter = buildFilterFromInput(rawInput)
-
-    if (!nextFilter) {
-      return
-    }
-
-    setPage(1)
-    setActiveFilters((currentFilters) => {
-      const alreadyExists = currentFilters.some(
-        (filter) =>
-          filter.attribute === nextFilter.attribute &&
-          filter.value.toLowerCase() === nextFilter.value.toLowerCase(),
-      )
-
-      if (alreadyExists) {
-        return currentFilters
-      }
-
-      return [...currentFilters, nextFilter]
-    })
-
-    if (keepAttributeInInput) {
-      const nextAttributeAlias =
-        subjectFilterOptions.find((option) => option.key === nextFilter.attribute)?.aliases?.[0] ||
-        nextFilter.attribute
-      setFilterInput(`${nextAttributeAlias}:`)
-      return
-    }
-
-    setFilterInput('')
-  }
-
-  function handleRemoveFilter(filterId) {
-    setPage(1)
-    setActiveFilters((currentFilters) =>
-      currentFilters.filter((filter) => filter.id !== filterId),
-    )
-  }
-
-  function handleClearFilters() {
-    setPage(1)
-    setActiveFilters([])
-    setFilterInput('')
-  }
-
-  function getFilterTagClass(attribute) {
-    if (attribute === 'name') {
-      return 'subject-filter-tag subject-filter-tag-name'
-    }
-
-    if (attribute === 'description') {
-      return 'subject-filter-tag subject-filter-tag-description'
-    }
-
-    if (attribute === 'school_external_id') {
-      return 'subject-filter-tag subject-filter-tag-school'
-    }
-
-    if (attribute === 'class_external_id') {
-      return 'subject-filter-tag subject-filter-tag-class'
-    }
-
-    return 'subject-filter-tag'
-  }
-
-  const filterInputSuggestions = useMemo(() => {
-    const normalizedInput = filterInput.trim().toLowerCase()
-
-    if (!normalizedInput || !normalizedInput.includes(':')) {
-      return subjectFilterOptions
-        .filter((option) =>
-          !normalizedInput
-            ? true
-            : option.label.toLowerCase().includes(normalizedInput) ||
-              option.aliases?.some((alias) => alias.includes(normalizedInput)),
-        )
-        .map((option) => ({
-          id: option.key,
-          attribute: option.key,
-          label: option.label,
-          hint: `${option.aliases?.[0] || option.key}:valor`,
-          onSelect: () => handleFilterAttributeChange(option.key),
-        }))
-    }
-
-    if (!draftFilterConfig) {
-      return []
-    }
-
-    if (draftFilterConfig.type !== 'select') {
-      return []
-    }
-
-    const [, valuePart = ''] = filterInput.split(':')
-    const normalizedValue = valuePart.trim().toLowerCase()
-
-    return (draftFilterConfig.options ?? [])
-      .filter((option) => option.label.toLowerCase().includes(normalizedValue))
-      .slice(0, 8)
-      .map((option) => ({
-        id: option.value,
-        attribute: draftFilterConfig.key,
-        label: option.label,
-        hint: `${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.label}`,
-        onSelect: () =>
-          handleAddFilter(
-            `${draftFilterConfig.aliases?.[0] || draftFilterConfig.key}:${option.value}`,
-            { keepAttributeInInput: draftFilterConfig.key === 'class_external_id' },
-          ),
-      }))
-  }, [draftFilterConfig, filterInput, subjectFilterOptions])
-
-  const inputAttributePreview = useMemo(() => {
-    const normalizedInput = filterInput.trim().toLowerCase()
-    if (!normalizedInput) {
-      return null
-    }
-
-    const [attributeToken = ''] = normalizedInput.split(':')
-    const resolved = subjectFilterOptions.find(
-      (option) =>
-        option.aliases?.includes(attributeToken) ||
-        option.key === attributeToken ||
-        option.aliases?.some((alias) => alias.startsWith(attributeToken)),
-    )
-
-    return resolved?.key ?? null
-  }, [filterInput, subjectFilterOptions])
-
-  function getAttributeThemeClass(attribute) {
-    if (attribute === 'name') {
-      return 'attribute-theme-name'
-    }
-
-    if (attribute === 'description') {
-      return 'attribute-theme-description'
-    }
-
-    if (attribute === 'school_external_id') {
-      return 'attribute-theme-school'
-    }
-
-    if (attribute === 'class_external_id') {
-      return 'attribute-theme-class'
-    }
-
-    return ''
-  }
-
   return (
     <div className="module-grid module-grid-single">
       <section className="module-card">
@@ -515,68 +296,15 @@ export function SubjectsPage() {
           </button>
         </div>
 
-        <section className="subject-filter-builder" aria-label="Filtro de disciplinas">
-          <div className={`subject-query-input-shell ${getAttributeThemeClass(inputAttributePreview)}`}>
-            {activeFilters.map((filter) => (
-              <button
-                key={filter.id}
-                type="button"
-                className={getFilterTagClass(filter.attribute)}
-                onClick={() => handleRemoveFilter(filter.id)}
-                title="Remover filtro"
-              >
-                <span>
-                  {filter.label}: {filter.displayValue || filter.value}
-                </span>
-                <strong aria-hidden="true">x</strong>
-              </button>
-            ))}
-
-            <input
-              type="text"
-              value={filterInput}
-              className={`subject-query-input ${getAttributeThemeClass(inputAttributePreview)}`}
-              placeholder="Filtrar... ex.: nome:matemática"
-              onFocus={() => setIsFilterInputFocused(true)}
-              onBlur={() => window.setTimeout(() => setIsFilterInputFocused(false), 120)}
-              onChange={(event) => setFilterInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  handleAddFilter()
-                }
-
-                if (event.key === 'Backspace' && !filterInput && activeFilters.length > 0) {
-                  handleRemoveFilter(activeFilters[activeFilters.length - 1].id)
-                }
-              }}
-            />
-
-            {activeFilters.length > 0 && (
-              <button type="button" className="ghost-chip" onClick={handleClearFilters}>
-                <Icon name="close" size={14} />
-                Limpar
-              </button>
-            )}
-          </div>
-
-          {isFilterInputFocused && filterInputSuggestions.length > 0 && (
-            <div className="subject-filter-suggestions" role="listbox" aria-label="Sugestões de filtros">
-              {filterInputSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  type="button"
-                  className={`subject-filter-suggestion ${getAttributeThemeClass(suggestion.attribute)}`}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={suggestion.onSelect}
-                >
-                  <strong>{suggestion.label}</strong>
-                  <span>{suggestion.hint}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
+        <AttributeSearchFilter
+          definitions={subjectFilterOptions}
+          activeFilters={activeFilters}
+          onChange={(nextFilters) => {
+            setPage(1)
+            setActiveFilters(nextFilters)
+          }}
+          placeholder="Filtrar... ex.: nome:matemática"
+        />
 
         {subjectsQuery.isLoading && <p>Carregando...</p>}
 

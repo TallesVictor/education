@@ -25,6 +25,39 @@ class RoleController extends Controller
 
         $roles = $this->loadRolesCollection($cacheKey);
 
+        $nameFilters = $this->normalizeFilterValues($request->input('filter_name'));
+        foreach ($nameFilters as $nameFilter) {
+            $needle = strtolower($nameFilter);
+            $roles = $roles
+                ->filter(fn ($role) => str_contains(strtolower((string) $role->name), $needle))
+                ->values();
+        }
+
+        $isSystemFilters = $this->normalizeFilterValues($request->input('filter_is_system'));
+        if (!empty($isSystemFilters)) {
+            $boolFilters = collect($isSystemFilters)
+                ->map(function ($value) {
+                    if ($value === 'true' || $value === '1') {
+                        return true;
+                    }
+
+                    if ($value === 'false' || $value === '0') {
+                        return false;
+                    }
+
+                    return null;
+                })
+                ->filter(fn ($value) => $value !== null)
+                ->values()
+                ->all();
+
+            if (!empty($boolFilters)) {
+                $roles = $roles
+                    ->filter(fn ($role) => in_array((bool) $role->is_system, $boolFilters, true))
+                    ->values();
+            }
+        }
+
         $paginator = new LengthAwarePaginator(
             items: $roles->forPage($page, $perPage)->values(),
             total: $roles->count(),
@@ -170,5 +203,17 @@ class RoleController extends Controller
                 ->orderBy('name')
                 ->get();
         });
+    }
+
+    private function normalizeFilterValues(mixed $rawValues): array
+    {
+        $values = is_array($rawValues) ? $rawValues : [$rawValues];
+
+        return collect($values)
+            ->filter(fn ($value) => is_string($value) || is_numeric($value))
+            ->map(fn ($value) => trim((string) $value))
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
     }
 }

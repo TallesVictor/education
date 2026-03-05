@@ -15,10 +15,21 @@ class PermissionController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $permissions = Permission::query()
-            ->when($request->string('module')->isNotEmpty(), function ($query) use ($request) {
-                $query->where('module', $request->string('module'));
-            })
+        $query = Permission::query();
+
+        foreach ($this->normalizeFilterValues($request->input('name')) as $nameFilter) {
+            $query->where('name', 'like', '%'.$nameFilter.'%');
+        }
+
+        foreach ($this->normalizeFilterValues($request->input('key')) as $keyFilter) {
+            $query->where('key', 'like', '%'.$keyFilter.'%');
+        }
+
+        foreach ($this->normalizeFilterValues($request->input('module')) as $moduleFilter) {
+            $query->where('module', 'like', '%'.$moduleFilter.'%');
+        }
+
+        $permissions = $query
             ->orderBy('module')
             ->orderBy('name')
             ->get();
@@ -85,5 +96,17 @@ class PermissionController extends Controller
         return response()->json([
             'data' => ['message' => 'Permissão removida com sucesso.'],
         ]);
+    }
+
+    private function normalizeFilterValues(mixed $rawValues): array
+    {
+        $values = is_array($rawValues) ? $rawValues : [$rawValues];
+
+        return collect($values)
+            ->filter(fn ($value) => is_string($value) || is_numeric($value))
+            ->map(fn ($value) => trim((string) $value))
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
     }
 }

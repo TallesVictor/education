@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
+import { AttributeSearchFilter } from '../components/AttributeSearchFilter'
 import { useToast } from '../hooks/useToast'
 import { Icon } from '../components/Icon'
 
@@ -45,6 +46,7 @@ export function EnrollmentsPage() {
   const [studentSearch, setStudentSearch] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
   const [page, setPage] = useState(1)
+  const [activeFilters, setActiveFilters] = useState([])
 
   const individualForm = useForm({
     resolver: zodResolver(individualSchema),
@@ -57,9 +59,11 @@ export function EnrollmentsPage() {
   })
 
   const enrollmentsQuery = useQuery({
-    queryKey: ['enrollments', page],
+    queryKey: ['enrollments', page, activeFilters],
     queryFn: async () => {
-      const { data } = await api.get('/enrollments', { params: { page, per_page: 15 } })
+      const { data } = await api.get('/enrollments', {
+        params: { page, per_page: 15, ...buildEnrollmentFilterParams(activeFilters) },
+      })
       return {
         data: data.data,
         meta: data.meta,
@@ -163,6 +167,43 @@ export function EnrollmentsPage() {
     return students.every((student) => selectedStudentIds.includes(student.external_id))
   }, [students, selectedStudentIds])
 
+  const enrollmentFilterDefinitions = useMemo(
+    () => [
+      {
+        key: 'user_name',
+        label: 'Aluno',
+        aliases: ['aluno', 'user', 'nome'],
+        type: 'text',
+        theme: 'name',
+      },
+      {
+        key: 'class_external_id',
+        label: 'Turma',
+        aliases: ['turma', 'class'],
+        type: 'select',
+        theme: 'class',
+        keepAttributeInInput: true,
+        options: (classesQuery.data ?? []).map((schoolClass) => ({
+          value: schoolClass.external_id,
+          label: schoolClass.name,
+        })),
+      },
+      {
+        key: 'subject_external_id',
+        label: 'Disciplina',
+        aliases: ['disciplina', 'subject'],
+        type: 'select',
+        theme: 'description',
+        keepAttributeInInput: true,
+        options: (subjectsQuery.data ?? []).map((subject) => ({
+          value: subject.external_id,
+          label: subject.name,
+        })),
+      },
+    ],
+    [classesQuery.data, subjectsQuery.data],
+  )
+
   function toggleStudent(studentExternalId) {
     setSelectedStudentIds((current) => {
       if (current.includes(studentExternalId)) {
@@ -213,6 +254,16 @@ export function EnrollmentsPage() {
           <h3>Matrículas</h3>
           <p>{enrollmentsQuery.data?.meta?.total ?? 0} vínculos ativos</p>
         </div>
+
+        <AttributeSearchFilter
+          definitions={enrollmentFilterDefinitions}
+          activeFilters={activeFilters}
+          onChange={(nextFilters) => {
+            setPage(1)
+            setActiveFilters(nextFilters)
+          }}
+          placeholder="Filtrar matrículas... ex.: aluno:maria"
+        />
 
         <div className="table-wrap">
           <table>
@@ -422,4 +473,24 @@ export function EnrollmentsPage() {
       {statusMessage && <p className="status-text">{statusMessage}</p>}
     </div>
   )
+}
+
+function buildEnrollmentFilterParams(activeFilters) {
+  const params = {}
+
+  for (const filter of activeFilters) {
+    const paramName = `filter_${filter.attribute}`
+    const currentValue = params[paramName]
+
+    if (currentValue === undefined) {
+      params[paramName] = filter.value
+      continue
+    }
+
+    params[paramName] = Array.isArray(currentValue)
+      ? [...currentValue, filter.value]
+      : [currentValue, filter.value]
+  }
+
+  return params
 }

@@ -13,6 +13,7 @@ use App\Support\TenantCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -42,9 +43,24 @@ class SchoolClassController extends Controller
             $classes = $classes->filter(fn ($class) => str_contains(strtolower($class->name), $needle))->values();
         }
 
+        $classes = $this->applyContainsFilters($classes, 'name', $this->normalizeFilterValues($request->input('filter_name')));
+
         if ($request->filled('year')) {
             $year = (int) $request->integer('year');
             $classes = $classes->filter(fn ($class) => (int) $class->year === $year)->values();
+        }
+
+        $years = $this->normalizeFilterValues($request->input('filter_year'));
+        if (!empty($years)) {
+            $yearSet = array_map(fn ($year) => (int) $year, $years);
+            $classes = $classes->filter(fn ($class) => in_array((int) $class->year, $yearSet, true))->values();
+        }
+
+        $schoolExternalIds = $this->normalizeFilterValues($request->input('filter_school_external_id'));
+        if (!empty($schoolExternalIds)) {
+            $classes = $classes
+                ->filter(fn ($class) => in_array((string) $class->school?->external_id, $schoolExternalIds, true))
+                ->values();
         }
 
         $perPage = max(1, min(200, (int) $request->input('per_page', 15)));
@@ -207,5 +223,33 @@ class SchoolClassController extends Controller
         }
 
         return School::query()->where('external_id', $request->string('school_external_id'))->value('id');
+    }
+
+    private function applyContainsFilters(Collection $items, string $attribute, array $filterValues): Collection
+    {
+        foreach ($filterValues as $filterValue) {
+            $needle = strtolower($filterValue);
+
+            $items = $items
+                ->filter(function ($item) use ($attribute, $needle) {
+                    $value = strtolower((string) ($item->{$attribute} ?? ''));
+                    return str_contains($value, $needle);
+                })
+                ->values();
+        }
+
+        return $items;
+    }
+
+    private function normalizeFilterValues(mixed $rawValues): array
+    {
+        $values = is_array($rawValues) ? $rawValues : [$rawValues];
+
+        return collect($values)
+            ->filter(fn ($value) => is_string($value) || is_numeric($value))
+            ->map(fn ($value) => trim((string) $value))
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
     }
 }

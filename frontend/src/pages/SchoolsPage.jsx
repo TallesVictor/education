@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { PaginationControls } from '../components/PaginationControls'
+import { AttributeSearchFilter } from '../components/AttributeSearchFilter'
 import { useToast } from '../hooks/useToast'
 import { Icon } from '../components/Icon'
 
@@ -41,6 +42,62 @@ export function SchoolsPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [statusMessage, setStatusMessage] = useState('')
+  const [activeFilters, setActiveFilters] = useState([])
+
+  const schoolFilterDefinitions = useMemo(
+    () => [
+      {
+        key: 'name',
+        label: 'Nome',
+        aliases: ['nome', 'name'],
+        type: 'text',
+        theme: 'name',
+      },
+      {
+        key: 'type',
+        label: 'Tipo',
+        aliases: ['tipo', 'type'],
+        type: 'select',
+        theme: 'school',
+        options: [
+          { value: 'public', label: 'Pública' },
+          { value: 'private', label: 'Privada' },
+        ],
+      },
+      {
+        key: 'city',
+        label: 'Cidade',
+        aliases: ['cidade', 'city'],
+        type: 'text',
+        theme: 'description',
+      },
+    ],
+    [],
+  )
+
+  const filterParams = useMemo(() => {
+    const params = {}
+
+    for (const filter of activeFilters) {
+      const paramName = `filter_${filter.attribute}`
+      const currentValue = params[paramName]
+
+      if (currentValue === undefined) {
+        params[paramName] = filter.value
+        continue
+      }
+
+      params[paramName] = Array.isArray(currentValue)
+        ? [...currentValue, filter.value]
+        : [currentValue, filter.value]
+    }
+
+    return {
+      name: filterParamsToSingleValue(params.filter_name),
+      type: filterParamsToSingleValue(params.filter_type),
+      city: filterParamsToSingleValue(params.filter_city),
+    }
+  }, [activeFilters])
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -48,9 +105,11 @@ export function SchoolsPage() {
   })
 
   const schoolsQuery = useQuery({
-    queryKey: ['schools', page],
+    queryKey: ['schools', page, activeFilters],
     queryFn: async () => {
-      const { data } = await api.get('/schools', { params: { page, per_page: 15 } })
+      const { data } = await api.get('/schools', {
+        params: { page, per_page: 15, ...filterParams },
+      })
       return {
         data: data.data,
         meta: data.meta,
@@ -152,6 +211,16 @@ export function SchoolsPage() {
             Cadastrar escola
           </button>
         </div>
+
+        <AttributeSearchFilter
+          definitions={schoolFilterDefinitions}
+          activeFilters={activeFilters}
+          onChange={(nextFilters) => {
+            setPage(1)
+            setActiveFilters(nextFilters)
+          }}
+          placeholder="Filtrar escolas... ex.: nome:centro"
+        />
 
         {schoolsQuery.isLoading && <p>Carregando...</p>}
 
@@ -286,4 +355,12 @@ export function SchoolsPage() {
       )}
     </div>
   )
+}
+
+function filterParamsToSingleValue(value) {
+  if (Array.isArray(value)) {
+    return value[value.length - 1] ?? ''
+  }
+
+  return value ?? ''
 }

@@ -11,6 +11,12 @@ export function RolesPage() {
     <CrudModule
       title="Perfil"
       endpoint="roles"
+      formVariant="modal"
+      renderListActions={({ openCreateForm }) => (
+        <button type="button" onClick={openCreateForm}>
+          Cadastrar perfil
+        </button>
+      )}
       columns={[
         { key: 'name', label: 'Nome' },
         {
@@ -19,6 +25,26 @@ export function RolesPage() {
           render: (row) => (
             <span className="pill-badge">{row.is_system ? 'Sistema' : 'Custom'}</span>
           ),
+        },
+      ]}
+      attributeFilters={[
+        {
+          key: 'name',
+          label: 'Nome',
+          aliases: ['nome', 'name'],
+          type: 'text',
+          theme: 'name',
+        },
+        {
+          key: 'is_system',
+          label: 'Sistema',
+          aliases: ['sistema', 'system'],
+          type: 'select',
+          theme: 'class',
+          options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' },
+          ],
         },
       ]}
       schema={schema}

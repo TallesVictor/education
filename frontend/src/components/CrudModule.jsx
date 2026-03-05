@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { PaginationControls } from './PaginationControls'
 import { useToast } from '../hooks/useToast'
+import { AttributeSearchFilter } from './AttributeSearchFilter'
 import { Icon } from './Icon'
 
 const PAGE_SIZE = 15
@@ -18,6 +19,7 @@ export function CrudModule({
   initialValues,
   transformSubmit,
   filterFields = [],
+  attributeFilters = [],
   defaultFilters = {},
   fixedParams = {},
   formVariant = 'inline',
@@ -29,15 +31,37 @@ export function CrudModule({
   const [editing, setEditing] = useState(null)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState(defaultFilters)
+  const [attributeFilterState, setAttributeFilterState] = useState([])
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
 
+  const attributeFilterParams = useMemo(() => {
+    const params = {}
+
+    for (const filter of attributeFilterState) {
+      const paramName = `filter_${filter.attribute}`
+      const currentValue = params[paramName]
+
+      if (currentValue === undefined) {
+        params[paramName] = filter.value
+        continue
+      }
+
+      params[paramName] = Array.isArray(currentValue)
+        ? [...currentValue, filter.value]
+        : [currentValue, filter.value]
+    }
+
+    return params
+  }, [attributeFilterState])
+
   const listQuery = useQuery({
-    queryKey: [endpoint, page, filters, fixedParams],
+    queryKey: [endpoint, page, filters, attributeFilterState, fixedParams],
     queryFn: async () => {
       const { data } = await api.get(`/${endpoint}`, {
         params: {
           ...fixedParams,
           ...filters,
+          ...attributeFilterParams,
           page,
           per_page: PAGE_SIZE,
         },
@@ -187,6 +211,17 @@ export function CrudModule({
               </button>
             </div>
           </div>
+        )}
+
+        {attributeFilters.length > 0 && (
+          <AttributeSearchFilter
+            definitions={attributeFilters}
+            activeFilters={attributeFilterState}
+            onChange={(nextFilters) => {
+              setPage(1)
+              setAttributeFilterState(nextFilters)
+            }}
+          />
         )}
 
         {listQuery.isLoading && <p>Carregando...</p>}

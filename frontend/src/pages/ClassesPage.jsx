@@ -69,6 +69,30 @@ export function ClassesPage() {
         { key: 'enrollments_count', label: 'Alunos' },
         { key: 'subjects_count', label: 'Disciplinas' },
       ]}
+      attributeFilters={[
+        {
+          key: 'name',
+          label: 'Nome',
+          aliases: ['nome', 'name'],
+          type: 'text',
+          theme: 'name',
+        },
+        {
+          key: 'year',
+          label: 'Ano',
+          aliases: ['ano', 'year'],
+          type: 'text',
+          theme: 'school',
+        },
+        {
+          key: 'school_external_id',
+          label: 'Escola',
+          aliases: ['escola', 'school'],
+          type: 'select',
+          theme: 'school',
+          options: schoolOptions,
+        },
+      ]}
       schema={schema}
       initialValues={{
         school_external_id: '',

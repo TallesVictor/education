@@ -24,6 +24,32 @@ class EnrollmentController extends Controller
         $query = Enrollment::query()->with(['user', 'schoolClass', 'subject']);
         $this->applyTenantScope($query, $request);
 
+        $userNameFilters = $this->normalizeFilterValues($request->input('filter_user_name'));
+        foreach ($userNameFilters as $userNameFilter) {
+            $query->whereHas('user', function ($userQuery) use ($userNameFilter): void {
+                $userQuery->where(function ($userSearchQuery) use ($userNameFilter): void {
+                    $userSearchQuery
+                        ->where('name', 'like', '%'.$userNameFilter.'%')
+                        ->orWhere('social_name', 'like', '%'.$userNameFilter.'%')
+                        ->orWhere('email', 'like', '%'.$userNameFilter.'%');
+                });
+            });
+        }
+
+        $classExternalIds = $this->normalizeFilterValues($request->input('filter_class_external_id'));
+        if (!empty($classExternalIds)) {
+            $query->whereHas('schoolClass', function ($classQuery) use ($classExternalIds): void {
+                $classQuery->whereIn('external_id', $classExternalIds);
+            });
+        }
+
+        $subjectExternalIds = $this->normalizeFilterValues($request->input('filter_subject_external_id'));
+        if (!empty($subjectExternalIds)) {
+            $query->whereHas('subject', function ($subjectQuery) use ($subjectExternalIds): void {
+                $subjectQuery->whereIn('external_id', $subjectExternalIds);
+            });
+        }
+
         $enrollments = $query
             ->orderByDesc('id')
             ->paginate((int) $request->input('per_page', 15));
@@ -162,5 +188,17 @@ class EnrollmentController extends Controller
             ->whereHas('user', fn ($q) => $q->where('school_id', $tenantId))
             ->whereHas('schoolClass', fn ($q) => $q->where('school_id', $tenantId))
             ->whereHas('subject', fn ($q) => $q->where('school_id', $tenantId));
+    }
+
+    private function normalizeFilterValues(mixed $rawValues): array
+    {
+        $values = is_array($rawValues) ? $rawValues : [$rawValues];
+
+        return collect($values)
+            ->filter(fn ($value) => is_string($value) || is_numeric($value))
+            ->map(fn ($value) => trim((string) $value))
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
     }
 }
